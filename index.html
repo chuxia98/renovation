@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unit 02 · Building 2 · 3D Walkthrough</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="crosshair"></div>
+
+    <div id="hud">
+      <div class="brand">Unit 02 · Building 2 <span>3D Interior Walkthrough</span></div>
+      <div id="stats">Loading…</div>
+    </div>
+
+    <div id="mode" class="hidden">Walkthrough</div>
+
+    <div id="minimap">
+      <div class="map-head">OVERVIEW</div>
+      <canvas id="minimap-canvas"></canvas>
+    </div>
+
+    <div id="radar">
+      <canvas id="radar-canvas"></canvas>
+    </div>
+
+    <div id="hint">
+      <b>WASD</b> Move · <b>Mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture
+    </div>
+
+    <div id="buildbar" class="hidden">
+      <div class="bar-head">
+        <div>
+          <div class="bar-title">Furniture Catalog</div>
+          <div class="bar-sub">Left click to place · R rotate · Right click to remove · Esc exit</div>
+        </div>
+        <div class="bar-actions">
+          <button id="btn-schemes">Layouts</button>
+          <button id="btn-clear">Clear</button>
+          <button id="btn-exit">Exit (G)</button>
+        </div>
+      </div>
+      <div id="catalog"></div>
+      <div id="scheme-panel" class="hidden">
+        <div class="scheme-head">
+          Layouts
+          <span>Saved in this browser · Load anytime</span>
+        </div>
+        <div class="scheme-save">
+          <input id="scheme-name" type="text" maxlength="24" placeholder="Layout name (optional)" />
+          <button id="btn-save-scheme">Save Current</button>
+        </div>
+        <div id="scheme-list"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <div id="overlay">
+      <div class="panel">
+        <div class="kicker">Three.js · Real-time 3D</div>
+        <h1>Unit 02 · Building 2</h1>
+        <p>A three-bedroom apartment rebuilt 1:1 from the floor plan. Walk through the living room and bedrooms, then furnish it your way — every change is saved locally.</p>
+        <button id="btn-start">Enter Walkthrough</button>
+        <div class="keys">
+          <span><b>W A S D</b> Move</span>
+          <span><b>Shift</b> Sprint</span>
+          <span><b>Hold left mouse</b> Look</span>
+          <span><b>Wheel</b> Zoom</span>
+          <span><b>G</b> Furniture</span>
+          <span><b>Esc</b> Release cursor</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

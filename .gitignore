@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Derived floor-plan analysis artifacts
+crop_*.png
+walls_debug.png
+walls_raw.json
