@@ -38,12 +38,54 @@
           <div class="bar-sub">Left click to place · R rotate · Right click to remove · Esc exit</div>
         </div>
         <div class="bar-actions">
+          <button id="btn-style">Style</button>
           <button id="btn-schemes">Layouts</button>
           <button id="btn-clear">Clear</button>
           <button id="btn-exit">Exit (G)</button>
         </div>
       </div>
       <div id="catalog"></div>
+      <div id="style-panel" class="hidden">
+        <div class="scheme-head">
+          Room Style
+          <span>Per-room finish · saved with layouts</span>
+        </div>
+        <div class="style-row">
+          <label for="style-room">Room</label>
+          <select id="style-room"></select>
+        </div>
+        <div class="style-section">
+          <div class="style-section-head">Floor</div>
+          <div class="seg" id="style-floor-kind">
+            <button type="button" data-kind="wood">Wood</button>
+            <button type="button" data-kind="tile">Tile</button>
+            <button type="button" data-kind="stone">Stone</button>
+          </div>
+          <div class="swatches" id="style-floor-swatches"></div>
+          <div class="style-row">
+            <label for="style-floor-color">Color</label>
+            <input id="style-floor-color" type="color" />
+          </div>
+          <div class="style-row">
+            <label for="style-floor-size">Size</label>
+            <select id="style-floor-size"></select>
+          </div>
+        </div>
+        <div class="style-section">
+          <div class="style-section-head">Wall</div>
+          <div class="seg" id="style-wall-finish">
+            <button type="button" data-finish="paint">Paint</button>
+            <button type="button" data-finish="linen">Linen</button>
+            <button type="button" data-finish="stripe">Stripe</button>
+            <button type="button" data-finish="grid">Grid</button>
+          </div>
+          <div class="swatches" id="style-wall-swatches"></div>
+          <div class="style-row">
+            <label for="style-wall-color">Color</label>
+            <input id="style-wall-color" type="color" />
+          </div>
+        </div>
+      </div>
       <div id="scheme-panel" class="hidden">
         <div class="scheme-head">
           Layouts

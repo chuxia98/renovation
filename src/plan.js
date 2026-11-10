@@ -128,28 +128,42 @@ export const WALLS = [
   },
 ];
 
-// 地面分区（像素矩形）
-export const FLOORS = [
-  { x1: 386, z1: 832, x2: 941, z2: 1279, mat: 'wood' },    // 主卧
-  { x1: 386, z1: 1315, x2: 941, z2: 1816, mat: 'wood' },   // 次卧
-  { x1: 637, z1: 1853, x2: 1281, z2: 2443, mat: 'wood' },  // 多功能房
-  { x1: 960, z1: 1566, x2: 1281, z2: 1853, mat: 'wood' },  // 多功能房北区
-  { x1: 960, z1: 832, x2: 1281, z2: 1082, mat: 'tile' },   // 卫生间
-  { x1: 960, z1: 1100, x2: 1281, z2: 1566, mat: 'tile' },  // 走廊 + 洗手区
-  { x1: 1318, z1: 503, x2: 1727, z2: 956, mat: 'tile' },   // 厨房
-  { x1: 1318, z1: 966, x2: 2016, z2: 2121, mat: 'wood' },  // 客餐厅
-  { x1: 1766, z1: 690, x2: 2016, z2: 966, mat: 'wood' },   // 玄关
-  { x1: 1318, z1: 2157, x2: 2103, z2: 2470, mat: 'tile' }, // 阳台
-  { x1: 1766, z1: 464, x2: 2016, z2: 662, mat: 'stone' },  // 入户平台
+// 可单独设置地面 / 墙面样式的房间
+export const ROOMS = [
+  { id: 'master', name: 'Master Bedroom' },
+  { id: 'second', name: 'Second Bedroom' },
+  { id: 'multi', name: 'Multi-room' },
+  { id: 'bath', name: 'Bathroom' },
+  { id: 'corridor', name: 'Hallway' },
+  { id: 'kitchen', name: 'Kitchen' },
+  { id: 'living', name: 'Living / Dining' },
+  { id: 'entry', name: 'Entry Hall' },
+  { id: 'balcony', name: 'Balcony' },
+  { id: 'porch', name: 'Porch' },
+];
 
-  // 门洞 / 过门石
-  { x1: 941, z1: 1100, x2: 960, z2: 1260, mat: 'wood' },
-  { x1: 941, z1: 1333, x2: 960, z2: 1494, mat: 'wood' },
-  { x1: 960, z1: 1082, x2: 1102, z2: 1100, mat: 'tile' },
-  { x1: 1569, z1: 956, x2: 1711, z2: 966, mat: 'tile' },
-  { x1: 1281, z1: 1316, x2: 1318, z2: 1530, mat: 'wood' },
-  { x1: 1461, z1: 2121, x2: 1890, z2: 2157, mat: 'tile' },
-  { x1: 1781, z1: 662, x2: 1963, z2: 690, mat: 'wood' },
+// 地面分区（像素矩形）；room 指向 ROOMS；同房间可有多块地面
+export const FLOORS = [
+  { x1: 386, z1: 832, x2: 941, z2: 1279, mat: 'wood', room: 'master' },    // 主卧
+  { x1: 386, z1: 1315, x2: 941, z2: 1816, mat: 'wood', room: 'second' },   // 次卧
+  { x1: 637, z1: 1853, x2: 1281, z2: 2443, mat: 'wood', room: 'multi' },   // 多功能房
+  { x1: 960, z1: 1566, x2: 1281, z2: 1853, mat: 'wood', room: 'multi' },   // 多功能房北区
+  { x1: 960, z1: 832, x2: 1281, z2: 1082, mat: 'tile', room: 'bath' },     // 卫生间
+  { x1: 960, z1: 1100, x2: 1281, z2: 1566, mat: 'tile', room: 'corridor' },// 走廊 + 洗手区
+  { x1: 1318, z1: 503, x2: 1727, z2: 956, mat: 'tile', room: 'kitchen' },  // 厨房
+  { x1: 1318, z1: 966, x2: 2016, z2: 2121, mat: 'wood', room: 'living' },  // 客餐厅
+  { x1: 1766, z1: 690, x2: 2016, z2: 966, mat: 'wood', room: 'entry' },    // 玄关
+  { x1: 1318, z1: 2157, x2: 2103, z2: 2470, mat: 'tile', room: 'balcony' },// 阳台
+  { x1: 1766, z1: 464, x2: 2016, z2: 662, mat: 'stone', room: 'porch' },   // 入户平台
+
+  // 门洞 / 过门石，跟随相邻房间样式
+  { x1: 941, z1: 1100, x2: 960, z2: 1260, mat: 'wood', room: 'master' },
+  { x1: 941, z1: 1333, x2: 960, z2: 1494, mat: 'wood', room: 'second' },
+  { x1: 960, z1: 1082, x2: 1102, z2: 1100, mat: 'tile', room: 'bath' },
+  { x1: 1569, z1: 956, x2: 1711, z2: 966, mat: 'tile', room: 'kitchen' },
+  { x1: 1281, z1: 1316, x2: 1318, z2: 1530, mat: 'wood', room: 'living' },
+  { x1: 1461, z1: 2121, x2: 1890, z2: 2157, mat: 'tile', room: 'balcony' },
+  { x1: 1781, z1: 662, x2: 1963, z2: 690, mat: 'wood', room: 'entry' },
 ];
 
 // 飘窗：side 为外凸方向

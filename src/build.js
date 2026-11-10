@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { WALL_H, WALLS, FLOORS, BAYS, CEILING_LIGHTS, PX_PER_M, mx, mz } from './plan.js';
-import { woodFloorTexture, tileFloorTexture, stoneFloorTexture, wallTexture, skyTexture } from './textures.js';
+import { floorTexture, wallTexture, WALL_TEX_METERS, skyTexture } from './textures.js';
 
 const LIGHT_BOOST = 0.32;
+const ROOM_PROBE = 0.45; // 墙面取样点距墙中心线的距离（米）
 
 export function buildApartment(scene) {
   const root = new THREE.Group();
@@ -11,10 +12,61 @@ export function buildApartment(scene) {
 
   const colliders = [];
   const floorMeshes = [];
+  const wallMeshes = [];
+
+  // 房间矩形（米），用于判断墙体两侧归属
+  const roomRects = FLOORS.map((f) => ({
+    room: f.room,
+    x1: mx(f.x1), x2: mx(f.x2), z1: mz(f.z1), z2: mz(f.z2),
+  }));
+
+  function roomAt(x, z) {
+    for (const r of roomRects) {
+      if (x >= r.x1 - 0.01 && x <= r.x2 + 0.01 && z >= r.z1 - 0.01 && z <= r.z2 + 0.01) return r.room;
+    }
+    return null;
+  }
+
+  // BoxGeometry 每个面 UV 都是 0..1，按面的实际尺寸换算成重复次数
+  function scaleWallUVs(geo, sx, sy, sz) {
+    const uv = geo.attributes.uv;
+    const faceDims = [
+      [sz, sy], [sz, sy], // +x, -x
+      [sx, sz], [sx, sz], // +y, -y
+      [sx, sy], [sx, sy], // +z, -z
+    ];
+    for (let f = 0; f < 6; f++) {
+      const su = faceDims[f][0] / WALL_TEX_METERS;
+      const sv = faceDims[f][1] / WALL_TEX_METERS;
+      for (let i = f * 4; i < f * 4 + 4; i++) {
+        uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+      }
+    }
+    uv.needsUpdate = true;
+  }
+
+  // 其他方向的墙体在本墙上的交点，用于把长墙切成单房间段
+  const hBreaks = WALLS.filter((w) => w.o === 'h').map((w) => ({ at: mz(w.at), from: mx(w.from), to: mx(w.to) }));
+  const vBreaks = WALLS.filter((w) => w.o === 'v').map((w) => ({ at: mx(w.at), from: mz(w.from), to: mz(w.to) }));
+
+  function splitByJunctions(o, c, s, e) {
+    const breaks = (o === 'v' ? hBreaks : vBreaks)
+      .filter((b) => b.from - 0.02 <= c && c <= b.to + 0.02 && b.at > s + 0.005 && b.at < e - 0.005)
+      .map((b) => b.at)
+      .sort((p, q) => p - q);
+    const spans = [];
+    let cursor = s;
+    for (const at of breaks) {
+      spans.push([cursor, at]);
+      cursor = at;
+    }
+    spans.push([cursor, e]);
+    return spans;
+  }
 
   // ---------- 材质 ----------
 
-  const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture(), color: 0xe2dbcf, roughness: 0.95, metalness: 0 });
+  const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture(), color: 0xffffff, roughness: 0.95, metalness: 0 });
   const ceilMat = new THREE.MeshStandardMaterial({
     color: 0xe6e0d6, roughness: 0.96, emissive: 0xe8e0d2, emissiveIntensity: 0.32,
   });
@@ -60,17 +112,15 @@ export function buildApartment(scene) {
     const z2 = mz(f.z2);
     const w = x2 - x1;
     const d = z2 - z1;
-    let map;
-    if (f.mat === 'tile') map = tileFloorTexture(w, d);
-    else if (f.mat === 'stone') map = stoneFloorTexture(w, d);
-    else map = woodFloorTexture(w, d);
     const mat = new THREE.MeshStandardMaterial({
-      map,
+      map: floorTexture(f.mat, w, d),
       roughness: f.mat === 'wood' ? 0.52 : 0.38,
       metalness: 0,
     });
     const mesh = box(w, 0.08, d, mat, (x1 + x2) / 2, -0.04, (z1 + z2) / 2, { cast: false });
     mesh.name = 'floor';
+    mesh.userData.roomId = f.room;
+    mesh.userData.floorSize = { w, d };
     floorMeshes.push(mesh);
 
     // 顶棚
@@ -89,8 +139,19 @@ export function buildApartment(scene) {
     const seg = (s, e, y0, y1, collide) => {
       const len = e - s;
       if (len < 1e-4) return;
-      if (o === 'v') box(t, y1 - y0, len, wallMat, c, (y0 + y1) / 2, (s + e) / 2);
-      else box(len, y1 - y0, t, wallMat, (s + e) / 2, (y0 + y1) / 2, c);
+      for (const [ss, se] of splitByJunctions(o, c, s, e)) {
+        const slen = se - ss;
+        if (slen < 1e-4) continue;
+        const mesh = o === 'v'
+          ? box(t, y1 - y0, slen, wallMat, c, (y0 + y1) / 2, (ss + se) / 2)
+          : box(slen, y1 - y0, t, wallMat, (ss + se) / 2, (y0 + y1) / 2, c);
+        scaleWallUVs(mesh.geometry, o === 'v' ? t : slen, y1 - y0, o === 'v' ? slen : t);
+        const smid = (ss + se) / 2;
+        mesh.userData.wallSides = o === 'v'
+          ? { axis: 'v', plus: roomAt(c + ROOM_PROBE, smid), minus: roomAt(c - ROOM_PROBE, smid) }
+          : { axis: 'h', plus: roomAt(smid, c + ROOM_PROBE), minus: roomAt(smid, c - ROOM_PROBE) };
+        wallMeshes.push(mesh);
+      }
       // 踢脚线
       const mid = (s + e) / 2;
       const off = t / 2 + 0.007;
@@ -508,5 +569,5 @@ export function buildApartment(scene) {
     scene.add(b);
   }
 
-  return { root, colliders, floorMeshes };
+  return { root, colliders, floorMeshes, wallMeshes };
 }

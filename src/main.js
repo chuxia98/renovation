@@ -3,8 +3,13 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildApartment } from './build.js';
 import { PlayerControls } from './player.js';
 import { CATALOG, catalogItem, createFurniture, applyGhostMaterial } from './furniture.js';
-import { START, FLOORS, mx, mz } from './plan.js';
+import { START, FLOORS, ROOMS, mx, mz } from './plan.js';
 import { createMinimap, createRadar } from './minimap.js';
+import {
+  bindApartment, updateRoom, getRoomStyle, getStyleSnapshot, setStyleSnapshot,
+  FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
+} from './style.js';
+import { FLOOR_DEFAULTS } from './textures.js';
 
 const STORE_KEY = 'hourse-layout-v1';
 const SCHEMES_KEY = 'hourse-layout-schemes-v1';
@@ -31,7 +36,8 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.32;
 pmrem.dispose();
 
-const { colliders, floorMeshes } = buildApartment(scene);
+const { colliders, floorMeshes, wallMeshes } = buildApartment(scene);
+bindApartment({ floorMeshes, wallMeshes });
 
 // ---------- 家具 ----------
 
@@ -318,14 +324,16 @@ function saveScheme() {
     name = `Layout ${n}`;
   }
   const items = snapshot();
+  const styleSnap = getStyleSnapshot();
   const existing = schemes.find((s) => s.name === name);
   if (existing) {
     existing.items = items;
+    existing.style = styleSnap;
     existing.at = Date.now();
     toast(`Updated "${name}" · ${items.length} items`);
   } else {
     const at = Date.now();
-    schemes.push({ id: at, name, at, items });
+    schemes.push({ id: at, name, at, items, style: styleSnap });
     toast(`Saved "${name}" · ${items.length} items`);
   }
   writeSchemes(schemes);
@@ -337,6 +345,10 @@ function loadScheme(id) {
   const scheme = schemes.find((s) => s.id === id);
   if (!scheme) return;
   applyLayout(scheme.items);
+  if (scheme.style) {
+    setStyleSnapshot(scheme.style);
+    renderStyleControls();
+  }
   saveLayout();
   schemePanel.classList.add('hidden');
   toast(`Loaded "${scheme.name}" · ${placements.length} items`);
@@ -356,7 +368,10 @@ renderSchemes();
 
 document.getElementById('btn-schemes').addEventListener('click', () => {
   schemePanel.classList.toggle('hidden');
-  if (!schemePanel.classList.contains('hidden')) schemeNameEl.focus();
+  if (!schemePanel.classList.contains('hidden')) {
+    stylePanel.classList.add('hidden');
+    schemeNameEl.focus();
+  }
 });
 
 document.getElementById('btn-save-scheme').addEventListener('click', saveScheme);
@@ -364,6 +379,118 @@ document.getElementById('btn-save-scheme').addEventListener('click', saveScheme)
 schemeNameEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') saveScheme();
 });
+
+// ---------- 房间样式 ----------
+
+const stylePanel = document.getElementById('style-panel');
+const styleRoomEl = document.getElementById('style-room');
+const floorKindEl = document.getElementById('style-floor-kind');
+const floorSwatchesEl = document.getElementById('style-floor-swatches');
+const floorColorEl = document.getElementById('style-floor-color');
+const floorSizeEl = document.getElementById('style-floor-size');
+const wallFinishEl = document.getElementById('style-wall-finish');
+const wallSwatchesEl = document.getElementById('style-wall-swatches');
+const wallColorEl = document.getElementById('style-wall-color');
+
+let styleRoom = ROOMS[0].id;
+
+for (const r of ROOMS) {
+  const opt = document.createElement('option');
+  opt.value = r.id;
+  opt.textContent = r.name;
+  styleRoomEl.appendChild(opt);
+}
+
+function renderSwatches(el, colors, active, onPick) {
+  el.textContent = '';
+  for (const c of colors) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'swatch';
+    btn.style.background = c;
+    btn.title = c;
+    btn.classList.toggle('active', c.toLowerCase() === String(active).toLowerCase());
+    btn.addEventListener('click', () => onPick(c));
+    el.appendChild(btn);
+  }
+}
+
+function renderFloorSizes(kind, size) {
+  floorSizeEl.textContent = '';
+  for (const v of FLOOR_SIZES[kind]) {
+    const opt = document.createElement('option');
+    opt.value = String(v);
+    const cm = Math.round(v * 100);
+    opt.textContent = kind === 'wood' ? `Plank ${cm} cm` : `${cm} cm`;
+    floorSizeEl.appendChild(opt);
+  }
+  floorSizeEl.value = String(size);
+}
+
+function renderStyleControls() {
+  const conf = getRoomStyle(styleRoom);
+  styleRoomEl.value = styleRoom;
+
+  for (const btn of floorKindEl.children) btn.classList.toggle('active', btn.dataset.kind === conf.floor.kind);
+  renderSwatches(floorSwatchesEl, FLOOR_SWATCHES[conf.floor.kind], conf.floor.color, (color) => {
+    updateRoom(styleRoom, { floor: { color } });
+    renderStyleControls();
+  });
+  floorColorEl.value = conf.floor.color;
+  renderFloorSizes(conf.floor.kind, conf.floor.size);
+
+  for (const btn of wallFinishEl.children) btn.classList.toggle('active', btn.dataset.finish === conf.wall.finish);
+  renderSwatches(wallSwatchesEl, WALL_SWATCHES, conf.wall.color, (color) => {
+    updateRoom(styleRoom, { wall: { color } });
+    renderStyleControls();
+  });
+  wallColorEl.value = conf.wall.color;
+}
+
+styleRoomEl.addEventListener('change', () => {
+  styleRoom = styleRoomEl.value;
+  renderStyleControls();
+});
+
+floorKindEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const kind = btn.dataset.kind;
+  if (getRoomStyle(styleRoom).floor.kind === kind) return;
+  updateRoom(styleRoom, { floor: { kind, ...FLOOR_DEFAULTS[kind] } });
+  renderStyleControls();
+});
+
+floorColorEl.addEventListener('change', () => {
+  updateRoom(styleRoom, { floor: { color: floorColorEl.value } });
+  renderStyleControls();
+});
+
+floorSizeEl.addEventListener('change', () => {
+  updateRoom(styleRoom, { floor: { size: Number(floorSizeEl.value) } });
+});
+
+wallFinishEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  updateRoom(styleRoom, { wall: { finish: btn.dataset.finish } });
+  renderStyleControls();
+});
+
+wallColorEl.addEventListener('change', () => {
+  updateRoom(styleRoom, { wall: { color: wallColorEl.value } });
+  renderStyleControls();
+});
+
+document.getElementById('btn-style').addEventListener('click', () => {
+  stylePanel.classList.toggle('hidden');
+  if (!stylePanel.classList.contains('hidden')) {
+    schemePanel.classList.add('hidden');
+    renderStyleControls();
+  }
+});
+
+renderStyleControls();
 
 // ---------- 家具模式 ----------
 
@@ -444,6 +571,7 @@ function exitBuild() {
   body.classList.remove('build');
   buildbar.classList.add('hidden');
   schemePanel.classList.add('hidden');
+  stylePanel.classList.add('hidden');
   modeEl.textContent = 'Walkthrough';
   modeEl.classList.remove('build');
   if (ghost) {
