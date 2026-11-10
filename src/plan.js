@@ -128,18 +128,18 @@ export const WALLS = [
   },
 ];
 
-// 可单独设置地面 / 墙面样式的房间
+// 可单独设置地面 / 墙面样式的房间（名称走 i18n：room.<id>）
 export const ROOMS = [
-  { id: 'master', name: 'Master Bedroom' },
-  { id: 'second', name: 'Second Bedroom' },
-  { id: 'multi', name: 'Multi-room' },
-  { id: 'bath', name: 'Bathroom' },
-  { id: 'corridor', name: 'Hallway' },
-  { id: 'kitchen', name: 'Kitchen' },
-  { id: 'living', name: 'Living / Dining' },
-  { id: 'entry', name: 'Entry Hall' },
-  { id: 'balcony', name: 'Balcony' },
-  { id: 'porch', name: 'Porch' },
+  { id: 'master' },
+  { id: 'second' },
+  { id: 'multi' },
+  { id: 'bath' },
+  { id: 'corridor' },
+  { id: 'kitchen' },
+  { id: 'living' },
+  { id: 'entry' },
+  { id: 'balcony' },
+  { id: 'porch' },
 ];
 
 // 地面分区（像素矩形）；room 指向 ROOMS；同房间可有多块地面

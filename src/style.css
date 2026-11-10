@@ -59,13 +59,93 @@ body.locked #app canvas {
   font-weight: 600;
 }
 
-.brand span {
+.brand-sub {
   margin-left: 10px;
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.22em;
   color: var(--accent);
   text-transform: uppercase;
+}
+
+/* ---------- Settings ---------- */
+
+#settings {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 25;
+  user-select: none;
+}
+
+#btn-settings {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+#btn-settings:hover {
+  color: var(--ink);
+  border-color: rgba(224, 169, 109, 0.45);
+}
+
+#settings-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 236px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(18, 20, 24, 0.92);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.settings-head {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-row label {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.settings-row select {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-row select:focus {
+  outline: none;
+  border-color: rgba(224, 169, 109, 0.55);
 }
 
 #stats {
@@ -79,7 +159,7 @@ body.locked #app canvas {
 #mode {
   position: fixed;
   top: 22px;
-  right: 24px;
+  right: 72px;
   padding: 7px 14px;
   border: 1px solid var(--glass-border);
   border-radius: 999px;
@@ -442,7 +522,7 @@ body.build #crosshair {
   letter-spacing: 0.08em;
 }
 
-.scheme-head span {
+.scheme-head .head-sub {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -677,24 +757,160 @@ body.build #crosshair {
   border-color: rgba(255, 120, 120, 0.4);
 }
 
+/* ---------- Touch ---------- */
+
+.keys-touch {
+  display: none;
+}
+
+#btn-rotate {
+  display: none;
+}
+
+body.touch .keys-desktop {
+  display: none;
+}
+
+body.touch .keys-touch {
+  display: flex;
+}
+
+body.touch #hint {
+  display: none;
+}
+
+body.touch #btn-rotate {
+  display: inline-block;
+}
+
+body.touch #app canvas {
+  touch-action: none;
+}
+
+body.touch,
+body.touch * {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+#joystick {
+  position: fixed;
+  left: calc(18px + env(safe-area-inset-left));
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  touch-action: none;
+  z-index: 15;
+}
+
+#joystick::before {
+  content: '';
+  position: absolute;
+  inset: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+}
+
+#joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(224, 169, 109, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  will-change: transform;
+}
+
+body.build #joystick {
+  bottom: calc(210px + env(safe-area-inset-bottom));
+}
+
+@media (max-height: 520px) {
+  body.build #joystick {
+    bottom: calc(170px + env(safe-area-inset-bottom));
+  }
+}
+
+body.touch.build #toast {
+  bottom: calc(236px + env(safe-area-inset-bottom));
+}
+
+body.touch.build #radar {
+  display: none;
+}
+
+#build-fab {
+  position: fixed;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid rgba(224, 169, 109, 0.5);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  backdrop-filter: blur(12px);
+  color: var(--accent);
+  cursor: pointer;
+  z-index: 15;
+}
+
+body.build #build-fab {
+  display: none;
+}
+
 @media (max-width: 720px) {
   #hud {
-    top: 16px;
-    left: 16px;
+    top: 14px;
+    left: 14px;
+    right: 62px;
+  }
+  .brand {
+    font-size: 14px;
+    letter-spacing: 0.04em;
+  }
+  .brand-sub {
+    display: none;
+  }
+  #stats {
+    margin-top: 4px;
+    font-size: 10px;
   }
   #mode {
     top: 16px;
-    right: 16px;
+    right: 64px;
+  }
+  #settings {
+    top: 10px;
+    right: 12px;
+  }
+  #btn-settings {
+    width: 44px;
+    height: 44px;
   }
   #minimap {
-    top: 52px;
-    right: 16px;
+    top: 64px;
+    right: 12px;
+  }
+  #minimap canvas {
+    max-width: 118px;
+    height: auto !important;
   }
   #radar {
-    top: 68px;
-    left: 16px;
-    width: 108px;
-    height: 108px;
+    top: 96px;
+    left: 14px;
+    width: 92px;
+    height: 92px;
   }
   .panel {
     padding: 32px 26px 26px;
@@ -703,7 +919,7 @@ body.build #crosshair {
     font-size: 26px;
   }
   #buildbar {
-    bottom: 14px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     width: calc(100vw - 20px);
     padding: 12px;
   }

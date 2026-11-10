@@ -25,6 +25,9 @@ export class PlayerControls {
     this.dragging = false;
     this.dragX = 0;
     this.dragY = 0;
+    this.dragId = null;
+    this.touchX = 0;
+    this.touchY = 0;
 
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.dom;
@@ -34,25 +37,31 @@ export class PlayerControls {
 
     document.addEventListener('pointerlockerror', () => this.onLockError?.());
 
-    // 浏览器不允许指针锁定时（如内嵌 iframe），按住左键拖拽同样可以转动视角
+    // 浏览器不允许指针锁定时（如内嵌 iframe），按住拖拽同样可以转动视角；
+    // 触屏只跟踪第一根手指，避免多指时视角跳动
     dom.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || this.locked || !this.enabled) return;
+      if (e.button !== 0 || this.locked || !this.enabled || this.dragId !== null) return;
       this.dragging = true;
+      this.dragId = e.pointerId;
       this.dragX = e.clientX;
       this.dragY = e.clientY;
     });
-    window.addEventListener('pointerup', () => {
+    const endDrag = (e) => {
+      if (e.pointerId !== this.dragId) return;
       this.dragging = false;
-    });
+      this.dragId = null;
+    };
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
 
-    document.addEventListener('mousemove', (e) => {
+    window.addEventListener('pointermove', (e) => {
       if (!this.enabled) return;
       let dx;
       let dy;
       if (this.locked) {
         dx = e.movementX;
         dy = e.movementY;
-      } else if (this.dragging) {
+      } else if (this.dragging && e.pointerId === this.dragId) {
         dx = e.clientX - this.dragX;
         dy = e.clientY - this.dragY;
         this.dragX = e.clientX;
@@ -74,6 +83,9 @@ export class PlayerControls {
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.dragging = false;
+      this.dragId = null;
+      this.touchX = 0;
+      this.touchY = 0;
     });
 
     camera.rotation.order = 'YXZ';
@@ -88,6 +100,12 @@ export class PlayerControls {
 
   unlock() {
     if (document.pointerLockElement === this.dom) document.exitPointerLock();
+  }
+
+  // 虚拟摇杆：x 为右向，y 为前向，范围 -1..1
+  setTouchInput(x, y) {
+    this.touchX = x;
+    this.touchY = y;
   }
 
   hit(x, z) {
@@ -118,12 +136,14 @@ export class PlayerControls {
       if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) forward -= 1;
       if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) strafe += 1;
       if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) strafe -= 1;
+      forward += this.touchY;
+      strafe += this.touchX;
     }
 
-    if (forward !== 0 && strafe !== 0) {
-      const inv = Math.SQRT1_2;
-      forward *= inv;
-      strafe *= inv;
+    const mag = Math.hypot(forward, strafe);
+    if (mag > 1) {
+      forward /= mag;
+      strafe /= mag;
     }
 
     const speed = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? SPRINT : WALK;

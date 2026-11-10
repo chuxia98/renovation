@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Unit 02 · Building 2 · 3D Walkthrough</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
@@ -12,14 +12,33 @@
     <div id="crosshair"></div>
 
     <div id="hud">
-      <div class="brand">Unit 02 · Building 2 <span>3D Interior Walkthrough</span></div>
-      <div id="stats">Loading…</div>
+      <div class="brand"><span class="brand-name" data-i18n="hud.brand">Unit 02 · Building 2</span><span class="brand-sub" data-i18n="hud.subtitle">3D Interior Walkthrough</span></div>
+      <div id="stats" data-i18n="hud.loading">Loading…</div>
     </div>
 
-    <div id="mode" class="hidden">Walkthrough</div>
+    <div id="settings">
+      <button id="btn-settings" type="button" data-i18n-aria="settings.open">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.2" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
+        </svg>
+      </button>
+      <div id="settings-panel" class="hidden">
+        <div class="settings-head" data-i18n="settings.title">Settings</div>
+        <div class="settings-row">
+          <label for="lang-select" data-i18n="settings.language">Language</label>
+          <select id="lang-select">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="mode" class="hidden" data-i18n="mode.walkthrough">Walkthrough</div>
 
     <div id="minimap">
-      <div class="map-head">OVERVIEW</div>
+      <div class="map-head" data-i18n="map.overview">OVERVIEW</div>
       <canvas id="minimap-canvas"></canvas>
     </div>
 
@@ -27,73 +46,74 @@
       <canvas id="radar-canvas"></canvas>
     </div>
 
-    <div id="hint">
+    <div id="hint" data-i18n-html="hud.hint">
       <b>WASD</b> Move · <b>Mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture
     </div>
 
     <div id="buildbar" class="hidden">
       <div class="bar-head">
         <div>
-          <div class="bar-title">Furniture Catalog</div>
-          <div class="bar-sub">Left click to place · R rotate · Right click to remove · Esc exit</div>
+          <div class="bar-title" data-i18n="build.title">Furniture Catalog</div>
+          <div class="bar-sub" data-i18n="build.sub">Left click to place · R rotate · Right click to remove · Esc exit</div>
         </div>
         <div class="bar-actions">
-          <button id="btn-style">Style</button>
-          <button id="btn-schemes">Layouts</button>
-          <button id="btn-clear">Clear</button>
-          <button id="btn-exit">Exit (G)</button>
+          <button id="btn-style" data-i18n="build.style">Style</button>
+          <button id="btn-schemes" data-i18n="build.layouts">Layouts</button>
+          <button id="btn-rotate" data-i18n="build.rotate">Rotate</button>
+          <button id="btn-clear" data-i18n="build.clear">Clear</button>
+          <button id="btn-exit" data-i18n="build.exit">Exit (G)</button>
         </div>
       </div>
       <div id="catalog"></div>
       <div id="style-panel" class="hidden">
         <div class="scheme-head">
-          Room Style
-          <span>Per-room finish · saved with layouts</span>
+          <span class="head-title" data-i18n="style.title">Room Style</span>
+          <span class="head-sub" data-i18n="style.subtitle">Per-room finish · saved with layouts</span>
         </div>
         <div class="style-row">
-          <label for="style-room">Room</label>
+          <label for="style-room" data-i18n="style.room">Room</label>
           <select id="style-room"></select>
         </div>
         <div class="style-section">
-          <div class="style-section-head">Floor</div>
+          <div class="style-section-head" data-i18n="style.floor">Floor</div>
           <div class="seg" id="style-floor-kind">
-            <button type="button" data-kind="wood">Wood</button>
-            <button type="button" data-kind="tile">Tile</button>
-            <button type="button" data-kind="stone">Stone</button>
+            <button type="button" data-kind="wood" data-i18n="style.kind.wood">Wood</button>
+            <button type="button" data-kind="tile" data-i18n="style.kind.tile">Tile</button>
+            <button type="button" data-kind="stone" data-i18n="style.kind.stone">Stone</button>
           </div>
           <div class="swatches" id="style-floor-swatches"></div>
           <div class="style-row">
-            <label for="style-floor-color">Color</label>
+            <label for="style-floor-color" data-i18n="style.color">Color</label>
             <input id="style-floor-color" type="color" />
           </div>
           <div class="style-row">
-            <label for="style-floor-size">Size</label>
+            <label for="style-floor-size" data-i18n="style.size">Size</label>
             <select id="style-floor-size"></select>
           </div>
         </div>
         <div class="style-section">
-          <div class="style-section-head">Wall</div>
+          <div class="style-section-head" data-i18n="style.wall">Wall</div>
           <div class="seg" id="style-wall-finish">
-            <button type="button" data-finish="paint">Paint</button>
-            <button type="button" data-finish="linen">Linen</button>
-            <button type="button" data-finish="stripe">Stripe</button>
-            <button type="button" data-finish="grid">Grid</button>
+            <button type="button" data-finish="paint" data-i18n="style.finish.paint">Paint</button>
+            <button type="button" data-finish="linen" data-i18n="style.finish.linen">Linen</button>
+            <button type="button" data-finish="stripe" data-i18n="style.finish.stripe">Stripe</button>
+            <button type="button" data-finish="grid" data-i18n="style.finish.grid">Grid</button>
           </div>
           <div class="swatches" id="style-wall-swatches"></div>
           <div class="style-row">
-            <label for="style-wall-color">Color</label>
+            <label for="style-wall-color" data-i18n="style.color">Color</label>
             <input id="style-wall-color" type="color" />
           </div>
         </div>
       </div>
       <div id="scheme-panel" class="hidden">
         <div class="scheme-head">
-          Layouts
-          <span>Saved in this browser · Load anytime</span>
+          <span class="head-title" data-i18n="scheme.title">Layouts</span>
+          <span class="head-sub" data-i18n="scheme.subtitle">Saved in this browser · Load anytime</span>
         </div>
         <div class="scheme-save">
-          <input id="scheme-name" type="text" maxlength="24" placeholder="Layout name (optional)" />
-          <button id="btn-save-scheme">Save Current</button>
+          <input id="scheme-name" type="text" maxlength="24" data-i18n-placeholder="scheme.namePlaceholder" placeholder="Layout name (optional)" />
+          <button id="btn-save-scheme" data-i18n="scheme.save">Save Current</button>
         </div>
         <div id="scheme-list"></div>
       </div>
@@ -101,19 +121,36 @@
 
     <div id="toast" class="hidden"></div>
 
+    <div id="joystick" class="hidden" aria-hidden="true">
+      <div id="joystick-knob"></div>
+    </div>
+
+    <button id="build-fab" class="hidden" type="button" data-i18n-aria="build.open" aria-label="Furniture mode">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4" />
+        <path d="M4 14v-4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" />
+        <path d="M5 14h14v5H5z" />
+      </svg>
+    </button>
+
     <div id="overlay">
       <div class="panel">
-        <div class="kicker">Three.js · Real-time 3D</div>
-        <h1>Unit 02 · Building 2</h1>
-        <p>A three-bedroom apartment rebuilt 1:1 from the floor plan. Walk through the living room and bedrooms, then furnish it your way — every change is saved locally.</p>
-        <button id="btn-start">Enter Walkthrough</button>
-        <div class="keys">
-          <span><b>W A S D</b> Move</span>
-          <span><b>Shift</b> Sprint</span>
-          <span><b>Hold left mouse</b> Look</span>
-          <span><b>Wheel</b> Zoom</span>
-          <span><b>G</b> Furniture</span>
-          <span><b>Esc</b> Release cursor</span>
+        <div class="kicker" data-i18n="overlay.kicker">Three.js · Real-time 3D</div>
+        <h1 data-i18n="overlay.title">Unit 02 · Building 2</h1>
+        <p data-i18n="overlay.desc">A three-bedroom apartment rebuilt 1:1 from the floor plan. Walk through the living room and bedrooms, then furnish it your way — every change is saved locally.</p>
+        <button id="btn-start" data-i18n="overlay.start">Enter Walkthrough</button>
+        <div class="keys keys-desktop">
+          <span data-i18n-html="overlay.keys.move"><b>W A S D</b> Move</span>
+          <span data-i18n-html="overlay.keys.sprint"><b>Shift</b> Sprint</span>
+          <span data-i18n-html="overlay.keys.look"><b>Hold left mouse</b> Look</span>
+          <span data-i18n-html="overlay.keys.zoom"><b>Wheel</b> Zoom</span>
+          <span data-i18n-html="overlay.keys.furniture"><b>G</b> Furniture</span>
+          <span data-i18n-html="overlay.keys.esc"><b>Esc</b> Release cursor</span>
+        </div>
+        <div class="keys keys-touch">
+          <span data-i18n-html="overlay.keys.joystick"><b>Joystick</b> Move</span>
+          <span data-i18n-html="overlay.keys.drag"><b>Drag</b> Look</span>
+          <span data-i18n-html="overlay.keys.buildTouch"><b>Furniture</b> Place furniture</span>
         </div>
       </div>
     </div>

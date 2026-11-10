@@ -364,27 +364,28 @@ function plant() {
 
 // ---------- 目录 ----------
 
+// 名称走 i18n：catalog.<id>
 export const CATALOG = [
-  { id: 'sofa', name: 'Sofa', w: 2.1, d: 0.9, build: sofa },
-  { id: 'armchair', name: 'Armchair', w: 0.85, d: 0.85, build: armchair },
-  { id: 'coffee', name: 'Coffee Table', w: 1.1, d: 0.6, build: coffeeTable },
-  { id: 'tv', name: 'TV Stand', w: 1.8, d: 0.4, build: tvCabinet },
-  { id: 'rug', name: 'Rug', w: 2.4, d: 1.6, build: rug, flat: true },
-  { id: 'dining', name: 'Dining Table', w: 1.4, d: 0.85, build: diningTable },
-  { id: 'chair', name: 'Dining Chair', w: 0.46, d: 0.5, build: chair },
-  { id: 'bed', name: 'Double Bed', w: 1.8, d: 2.05, build: bed },
-  { id: 'singlebed', name: 'Single Bed', w: 1.2, d: 1.95, build: singleBed },
-  { id: 'nightstand', name: 'Nightstand', w: 0.45, d: 0.4, build: nightstand },
-  { id: 'wardrobe', name: 'Wardrobe', w: 1.6, d: 0.6, build: wardrobe },
-  { id: 'desk', name: 'Desk', w: 1.2, d: 0.6, build: desk },
-  { id: 'shelf', name: 'Bookshelf', w: 0.9, d: 0.35, build: bookshelf },
-  { id: 'lamp', name: 'Floor Lamp', w: 0.4, d: 0.4, build: floorLamp },
-  { id: 'plant', name: 'Plant', w: 0.5, d: 0.5, build: plant },
-  { id: 'fridge', name: 'Fridge', w: 0.7, d: 0.65, build: fridge },
-  { id: 'counter', name: 'Counter', w: 1.8, d: 0.6, build: counter },
-  { id: 'toilet', name: 'Toilet', w: 0.42, d: 0.7, build: toilet },
-  { id: 'washbasin', name: 'Washbasin', w: 1.0, d: 0.52, build: washbasin },
-  { id: 'shower', name: 'Shower', w: 0.9, d: 0.9, build: shower },
+  { id: 'sofa', w: 2.1, d: 0.9, build: sofa },
+  { id: 'armchair', w: 0.85, d: 0.85, build: armchair },
+  { id: 'coffee', w: 1.1, d: 0.6, build: coffeeTable },
+  { id: 'tv', w: 1.8, d: 0.4, build: tvCabinet },
+  { id: 'rug', w: 2.4, d: 1.6, build: rug, flat: true },
+  { id: 'dining', w: 1.4, d: 0.85, build: diningTable },
+  { id: 'chair', w: 0.46, d: 0.5, build: chair },
+  { id: 'bed', w: 1.8, d: 2.05, build: bed },
+  { id: 'singlebed', w: 1.2, d: 1.95, build: singleBed },
+  { id: 'nightstand', w: 0.45, d: 0.4, build: nightstand },
+  { id: 'wardrobe', w: 1.6, d: 0.6, build: wardrobe },
+  { id: 'desk', w: 1.2, d: 0.6, build: desk },
+  { id: 'shelf', w: 0.9, d: 0.35, build: bookshelf },
+  { id: 'lamp', w: 0.4, d: 0.4, build: floorLamp },
+  { id: 'plant', w: 0.5, d: 0.5, build: plant },
+  { id: 'fridge', w: 0.7, d: 0.65, build: fridge },
+  { id: 'counter', w: 1.8, d: 0.6, build: counter },
+  { id: 'toilet', w: 0.42, d: 0.7, build: toilet },
+  { id: 'washbasin', w: 1.0, d: 0.52, build: washbasin },
+  { id: 'shower', w: 0.9, d: 0.9, build: shower },
 ];
 
 const BY_ID = new Map(CATALOG.map((item) => [item.id, item]));

@@ -5,6 +5,7 @@ import { PlayerControls } from './player.js';
 import { CATALOG, catalogItem, createFurniture, applyGhostMaterial } from './furniture.js';
 import { START, FLOORS, ROOMS, mx, mz } from './plan.js';
 import { createMinimap, createRadar } from './minimap.js';
+import { t, getLang, setLang, applyStatic, initLang, onLangChange } from './i18n.js';
 import {
   bindApartment, updateRoom, getRoomStyle, getStyleSnapshot, setStyleSnapshot,
   FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
@@ -13,6 +14,7 @@ import { FLOOR_DEFAULTS } from './textures.js';
 
 const STORE_KEY = 'hourse-layout-v1';
 const SCHEMES_KEY = 'hourse-layout-schemes-v1';
+const isTouch = window.matchMedia?.('(pointer: coarse)').matches ?? false;
 
 // ---------- 渲染器 / 场景 ----------
 
@@ -171,6 +173,7 @@ const controls = new PlayerControls(camera, renderer.domElement, colliders, STAR
 // ---------- UI ----------
 
 const body = document.body;
+if (isTouch) body.classList.add('touch');
 const overlay = document.getElementById('overlay');
 const buildbar = document.getElementById('buildbar');
 const catalogEl = document.getElementById('catalog');
@@ -181,9 +184,19 @@ const hintEl = document.getElementById('hint');
 const schemePanel = document.getElementById('scheme-panel');
 const schemeNameEl = document.getElementById('scheme-name');
 const schemeListEl = document.getElementById('scheme-list');
+const settingsBtn = document.getElementById('btn-settings');
+const settingsPanel = document.getElementById('settings-panel');
+const langSelect = document.getElementById('lang-select');
+const barSubEl = document.querySelector('.bar-sub');
+const exitBtnEl = document.getElementById('btn-exit');
+const joystickEl = document.getElementById('joystick');
+const joystickKnob = document.getElementById('joystick-knob');
+const buildFab = document.getElementById('build-fab');
+
+initLang();
 
 controls.onLockError = () => {
-  hintEl.innerHTML = '<b>WASD</b> Move · <b>Hold left mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture';
+  hintEl.innerHTML = t('hud.hintLock');
 };
 
 const getMapState = () => ({
@@ -223,11 +236,19 @@ function toast(msg, warn = false) {
   }, 1800);
 }
 
+function itemName(id) {
+  return t(`catalog.${id}`);
+}
+
+function catalogLabel(item) {
+  return `${itemName(item.id)}<span class="cat-size">${item.w.toFixed(2)} × ${item.d.toFixed(2)} m</span>`;
+}
+
 for (const item of CATALOG) {
   const btn = document.createElement('button');
   btn.className = 'cat-item';
   btn.dataset.id = item.id;
-  btn.innerHTML = `${item.name}<span class="cat-size">${item.w.toFixed(2)} × ${item.d.toFixed(2)} m</span>`;
+  btn.innerHTML = catalogLabel(item);
   btn.addEventListener('click', () => selectType(item.id));
   catalogEl.appendChild(btn);
 }
@@ -262,7 +283,7 @@ function migrateLegacyLayout() {
     const items = data.filter((p) => catalogItem(p.t));
     if (!items.length) return;
     const at = Date.now();
-    writeSchemes([{ id: at, name: 'Original Layout', at, items }]);
+    writeSchemes([{ id: at, name: t('scheme.original'), at, items }]);
     localStorage.removeItem(STORE_KEY);
   } catch {
     /* 数据损坏时按空场景启动 */
@@ -283,7 +304,7 @@ function renderSchemes() {
   if (!schemes.length) {
     const empty = document.createElement('div');
     empty.className = 'scheme-empty';
-    empty.textContent = 'No saved layouts yet';
+    empty.textContent = t('scheme.empty');
     schemeListEl.appendChild(empty);
     return;
   }
@@ -298,17 +319,17 @@ function renderSchemes() {
     name.textContent = s.name;
     const meta = document.createElement('div');
     meta.className = 'scheme-meta';
-    meta.textContent = `${s.items.length} items · ${formatStamp(s.at)}`;
+    meta.textContent = t('scheme.meta', { n: s.items.length, at: formatStamp(s.at) });
     info.append(name, meta);
 
     const loadBtn = document.createElement('button');
     loadBtn.type = 'button';
-    loadBtn.textContent = 'Load';
+    loadBtn.textContent = t('scheme.load');
     loadBtn.addEventListener('click', () => loadScheme(s.id));
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.textContent = 'Delete';
+    delBtn.textContent = t('scheme.delete');
     delBtn.addEventListener('click', () => deleteScheme(s.id));
 
     row.append(info, loadBtn, delBtn);
@@ -320,8 +341,8 @@ function saveScheme() {
   let name = schemeNameEl.value.trim();
   if (!name) {
     let n = 1;
-    while (schemes.some((s) => s.name === `Layout ${n}`)) n += 1;
-    name = `Layout ${n}`;
+    while (schemes.some((s) => s.name === t('scheme.defaultName', { n }))) n += 1;
+    name = t('scheme.defaultName', { n });
   }
   const items = snapshot();
   const styleSnap = getStyleSnapshot();
@@ -330,11 +351,11 @@ function saveScheme() {
     existing.items = items;
     existing.style = styleSnap;
     existing.at = Date.now();
-    toast(`Updated "${name}" · ${items.length} items`);
+    toast(t('toast.updatedScheme', { name, n: items.length }));
   } else {
     const at = Date.now();
     schemes.push({ id: at, name, at, items, style: styleSnap });
-    toast(`Saved "${name}" · ${items.length} items`);
+    toast(t('toast.savedScheme', { name, n: items.length }));
   }
   writeSchemes(schemes);
   schemeNameEl.value = '';
@@ -351,17 +372,17 @@ function loadScheme(id) {
   }
   saveLayout();
   schemePanel.classList.add('hidden');
-  toast(`Loaded "${scheme.name}" · ${placements.length} items`);
+  toast(t('toast.loadedScheme', { name: scheme.name, n: placements.length }));
 }
 
 function deleteScheme(id) {
   const idx = schemes.findIndex((s) => s.id === id);
   if (idx < 0) return;
-  if (!window.confirm(`Delete layout "${schemes[idx].name}"?`)) return;
+  if (!window.confirm(t('scheme.confirmDelete', { name: schemes[idx].name }))) return;
   const [removed] = schemes.splice(idx, 1);
   writeSchemes(schemes);
   renderSchemes();
-  toast(`Deleted "${removed.name}"`);
+  toast(t('toast.deletedScheme', { name: removed.name }));
 }
 
 renderSchemes();
@@ -397,7 +418,7 @@ let styleRoom = ROOMS[0].id;
 for (const r of ROOMS) {
   const opt = document.createElement('option');
   opt.value = r.id;
-  opt.textContent = r.name;
+  opt.textContent = t(`room.${r.id}`);
   styleRoomEl.appendChild(opt);
 }
 
@@ -421,7 +442,7 @@ function renderFloorSizes(kind, size) {
     const opt = document.createElement('option');
     opt.value = String(v);
     const cm = Math.round(v * 100);
-    opt.textContent = kind === 'wood' ? `Plank ${cm} cm` : `${cm} cm`;
+    opt.textContent = kind === 'wood' ? t('style.plankSize', { cm }) : `${cm} cm`;
     floorSizeEl.appendChild(opt);
   }
   floorSizeEl.value = String(size);
@@ -492,6 +513,104 @@ document.getElementById('btn-style').addEventListener('click', () => {
 
 renderStyleControls();
 
+// ---------- 设置 ----------
+
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  settingsPanel.classList.toggle('hidden');
+});
+
+langSelect.addEventListener('change', () => setLang(langSelect.value));
+
+document.addEventListener('pointerdown', (e) => {
+  if (settingsPanel.classList.contains('hidden')) return;
+  if (e.target.closest('#settings')) return;
+  settingsPanel.classList.add('hidden');
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Escape' || settingsPanel.classList.contains('hidden')) return;
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  settingsPanel.classList.add('hidden');
+}, { capture: true });
+
+// ---------- 触屏操作 ----------
+
+document.getElementById('btn-rotate').addEventListener('click', () => {
+  ghostRot = (ghostRot + 15) % 360;
+  updateGhost();
+});
+
+if (isTouch) {
+  buildFab.classList.remove('hidden');
+  buildFab.addEventListener('click', () => {
+    if (!buildMode) enterBuild();
+  });
+
+  joystickEl.classList.remove('hidden');
+  const JOY_RADIUS = 44;
+  let joyId = null;
+
+  const moveJoystick = (e) => {
+    const rect = joystickEl.getBoundingClientRect();
+    let dx = e.clientX - (rect.left + rect.width / 2);
+    let dy = e.clientY - (rect.top + rect.height / 2);
+    const len = Math.hypot(dx, dy);
+    if (len > JOY_RADIUS) {
+      dx = (dx / len) * JOY_RADIUS;
+      dy = (dy / len) * JOY_RADIUS;
+    }
+    joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+    controls.setTouchInput(dx / JOY_RADIUS, -dy / JOY_RADIUS);
+  };
+
+  joystickEl.addEventListener('pointerdown', (e) => {
+    if (joyId !== null) return;
+    joyId = e.pointerId;
+    joystickEl.setPointerCapture(e.pointerId);
+    moveJoystick(e);
+  });
+  joystickEl.addEventListener('pointermove', (e) => {
+    if (e.pointerId === joyId) moveJoystick(e);
+  });
+  const endJoystick = (e) => {
+    if (e.pointerId !== joyId) return;
+    joyId = null;
+    joystickKnob.style.transform = 'translate(0, 0)';
+    controls.setTouchInput(0, 0);
+  };
+  joystickEl.addEventListener('pointerup', endJoystick);
+  joystickEl.addEventListener('pointercancel', endJoystick);
+}
+
+// ---------- 语言切换 ----------
+
+function updateModeLabel() {
+  modeEl.textContent = buildMode ? t('mode.build') : controls.locked ? t('mode.exploring') : t('mode.walkthrough');
+}
+
+function renderLocalizedUI() {
+  applyStatic();
+  document.title = t('doc.title');
+  langSelect.value = getLang();
+  if (isTouch) {
+    hintEl.innerHTML = t('hud.hintTouch');
+    barSubEl.textContent = t('build.subTouch');
+    exitBtnEl.textContent = t('build.exitTouch');
+  }
+  for (const btn of catalogEl.children) {
+    const item = catalogItem(btn.dataset.id);
+    if (item) btn.innerHTML = catalogLabel(item);
+  }
+  for (const opt of styleRoomEl.options) opt.textContent = t(`room.${opt.value}`);
+  renderSchemes();
+  renderStyleControls();
+  updateModeLabel();
+}
+
+onLangChange(renderLocalizedUI);
+
 // ---------- 家具模式 ----------
 
 let buildMode = false;
@@ -556,8 +675,8 @@ function enterBuild() {
   controls.unlock();
   body.classList.add('build');
   buildbar.classList.remove('hidden');
-  modeEl.textContent = 'Furniture Mode';
   modeEl.classList.add('build');
+  updateModeLabel();
   if (ghostType) {
     if (!ghost) rebuildGhost();
     pointer.set(0, -0.35);
@@ -572,8 +691,8 @@ function exitBuild() {
   buildbar.classList.add('hidden');
   schemePanel.classList.add('hidden');
   stylePanel.classList.add('hidden');
-  modeEl.textContent = 'Walkthrough';
   modeEl.classList.remove('build');
+  updateModeLabel();
   if (ghost) {
     scene.remove(ghost);
     ghost = null;
@@ -588,16 +707,17 @@ function toggleBuild() {
 function placeGhost() {
   if (!ghost || !ghost.visible) return;
   if (!ghostValid) {
-    toast("That doesn't fit here — try another spot", true);
+    toast(t('toast.noFit'), true);
     return;
   }
   const x = +ghost.position.x.toFixed(3);
   const z = +ghost.position.z.toFixed(3);
   const r = Math.round(ghostRot);
   addFurniture(ghostType, x, z, r);
-  const item = catalogItem(ghostType);
-  toast(`Placed ${item.name} · ${placements.length} items`);
+  toast(t('toast.placed', { name: itemName(ghostType), n: placements.length }));
   updateGhost();
+  // 触屏没有悬停指针，放置后隐藏预览，避免盖住刚放下的家具
+  if (isTouch) ghost.visible = false;
 }
 
 function removeUnderPointer(clientX, clientY) {
@@ -615,23 +735,24 @@ function removeUnderPointer(clientX, clientY) {
   const [removed] = placements.splice(idx, 1);
   furnitureGroup.remove(removed.group);
   saveLayout();
-  toast(`Removed ${catalogItem(removed.t).name}`);
+  toast(t('toast.removed', { name: itemName(removed.t) }));
 }
 
 // ---------- 交互 ----------
 
 document.getElementById('btn-start').addEventListener('click', () => {
   overlay.classList.add('gone');
-  controls.lock();
+  if (isTouch) updateModeLabel();
+  else controls.lock();
 });
 
 document.getElementById('btn-clear').addEventListener('click', () => {
   if (!placements.length) {
-    toast('No furniture yet');
+    toast(t('toast.noFurniture'));
     return;
   }
   clearFurniture();
-  toast('Furniture cleared');
+  toast(t('toast.cleared'));
 });
 
 document.getElementById('btn-exit').addEventListener('click', exitBuild);
@@ -639,24 +760,67 @@ document.getElementById('btn-exit').addEventListener('click', exitBuild);
 controls.onLockChange = (locked) => {
   body.classList.toggle('locked', locked);
   if (!locked && buildMode) return;
-  modeEl.textContent = buildMode ? 'Furniture Mode' : locked ? 'Exploring' : 'Walkthrough';
+  updateModeLabel();
 };
-
-renderer.domElement.addEventListener('mousedown', (e) => {
-  if (buildMode) {
-    if (e.button === 0) placeGhost();
-    return;
-  }
-  if (!controls.locked) controls.lock();
-});
 
 renderer.domElement.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (buildMode) removeUnderPointer(e.clientX, e.clientY);
 });
 
+// 鼠标按下即放置；触屏用点按放置、长按移除，拖动则只转视角
+let tapStart = null;
+let pressTimer = 0;
+let pressHandled = false;
+
+function cancelPress() {
+  clearTimeout(pressTimer);
+  pressTimer = 0;
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || tapStart) return;
+  tapStart = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now(), moved: false };
+  pressHandled = false;
+  if (!buildMode || !isTouch) return;
+  const press = tapStart;
+  pressTimer = setTimeout(() => {
+    if (tapStart !== press || press.moved) return;
+    pressHandled = true;
+    removeUnderPointer(press.x, press.y);
+  }, 550);
+});
+
+window.addEventListener('pointerup', (e) => {
+  if (!tapStart || e.pointerId !== tapStart.id) return;
+  const tap = tapStart;
+  tapStart = null;
+  cancelPress();
+  if (tap.moved || pressHandled || performance.now() - tap.at > 500) return;
+  if (buildMode) {
+    pointer.set(
+      (e.clientX / window.innerWidth) * 2 - 1,
+      -(e.clientY / window.innerHeight) * 2 + 1,
+    );
+    updateGhost();
+    placeGhost();
+  } else if (!controls.locked && !isTouch) {
+    controls.lock();
+  }
+});
+
+window.addEventListener('pointercancel', () => {
+  tapStart = null;
+  cancelPress();
+});
+
 window.addEventListener('pointermove', (e) => {
-  if (!buildMode) return;
+  if (tapStart && e.pointerId === tapStart.id
+    && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > 10) {
+    tapStart.moved = true;
+    cancelPress();
+  }
+  if (!buildMode || e.pointerType !== 'mouse') return;
   pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   updateGhost();
 });
@@ -682,7 +846,7 @@ window.addEventListener('keydown', (e) => {
     if (last) {
       furnitureGroup.remove(last.group);
       saveLayout();
-      toast(`Removed ${catalogItem(last.t).name}`);
+      toast(t('toast.removed', { name: itemName(last.t) }));
     }
   }
 });
@@ -695,6 +859,7 @@ window.addEventListener('resize', () => {
 
 // ---------- 启动 ----------
 
+renderLocalizedUI();
 loadLayout();
 
 let last = performance.now();
@@ -718,7 +883,11 @@ function loop(now) {
   statTimer += dt;
   if (statTimer > 0.2) {
     statTimer = 0;
-    statsEl.textContent = `X ${controls.pos.x.toFixed(1)} m · Z ${controls.pos.z.toFixed(1)} m · ${placements.length} items`;
+    statsEl.textContent = t('hud.stats', {
+      x: controls.pos.x.toFixed(1),
+      z: controls.pos.z.toFixed(1),
+      n: placements.length,
+    });
   }
 
   renderer.render(scene, camera);
