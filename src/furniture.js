@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { pbrTextures } from './pbr.js';
 
 // 家具统一约定：原点在地面中心，正面朝 +Z
 
@@ -70,6 +71,35 @@ const MAT = {
 
 const BOOK_COLORS = [0x7a4a3a, 0x3e5a6b, 0x7b6b45, 0x8c8c8c, 0x4f6350, 0x9c7f5f];
 const BOOK_MATS = BOOK_COLORS.map((c) => std(c, 0.9));
+
+const FABRIC_MATS = ['fabricGray', 'fabricBeige', 'fabricDark', 'basket', 'basketLight', 'duvet', 'duvetAccent', 'pillow'];
+const RUG_MATS = ['rug', 'rugBorder'];
+
+// 载入真实贴图后给共享材质补上贴图；颜色仍由 MAT 里的色值控制
+export function applyFurnitureTextures() {
+  const oak = pbrTextures('oak', 1);
+  if (!oak) return;
+  const walnut = pbrTextures('walnut', 1);
+  const linen = pbrTextures('linen', 1.5);
+  const rugLinen = pbrTextures('linen', 8);
+  const marble = pbrTextures('marble', 1);
+
+  const assign = (mat, tex, normalScale, roughness = 1) => {
+    mat.map = tex.map;
+    mat.normalMap = tex.normalMap;
+    mat.roughnessMap = tex.roughnessMap;
+    mat.normalScale.set(normalScale, normalScale);
+    mat.roughness = roughness;
+    mat.needsUpdate = true;
+  };
+
+  assign(MAT.oak, oak, 0.9);
+  assign(MAT.paleWood, oak, 0.9);
+  assign(MAT.walnut, walnut, 1.0);
+  for (const key of FABRIC_MATS) assign(MAT[key], linen, 2.2);
+  for (const key of RUG_MATS) assign(MAT[key], rugLinen, 1.8);
+  assign(MAT.stoneTop, marble, 0.35, 0.8);
+}
 
 function part(parent, geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
   const mesh = new THREE.Mesh(geo, mat);

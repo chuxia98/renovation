@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { WALL_H, WALLS, FLOORS, BAYS, CEILING_LIGHTS, PX_PER_M, mx, mz } from './plan.js';
 import { createFloorMaterial, createWallMaterial, WALL_TEX_METERS, skyTexture } from './textures.js';
 
-const LIGHT_BOOST = 0.32;
+const LIGHT_BOOST = 0.2;
 const ROOM_PROBE = 0.45; // 墙面取样点距墙中心线的距离（米）
 
 export function buildApartment(scene) {
@@ -70,7 +70,7 @@ export function buildApartment(scene) {
   const wallMat = createWallMaterial();
   // 暖白哑光顶面，靠轻微自发光补足室内漫反射
   const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0xefe9df, roughness: 0.97, emissive: 0xeee6d9, emissiveIntensity: 0.28,
+    color: 0xefe9df, roughness: 0.97, emissive: 0xeee6d9, emissiveIntensity: 0.14,
   });
   // 哑光枪灰窗框
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x353836, roughness: 0.5, metalness: 0.7 });
@@ -566,12 +566,12 @@ export function buildApartment(scene) {
 
   // ---------- 灯光 ----------
 
-  scene.add(new THREE.AmbientLight(0xfff3e4, 0.08));
+  scene.add(new THREE.AmbientLight(0xfff3e4, 0.05));
 
-  const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x8a7a66, 0.3);
+  const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x8a7a66, 0.18);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff0d6, 2.2);
+  const sun = new THREE.DirectionalLight(0xfff0d6, 1.5);
   sun.position.set(-8, 15, 18);
   sun.target.position.set(5.2, 0.4, 5.8);
   sun.castShadow = true;

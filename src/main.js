@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { buildApartment } from './build.js';
 import { PlayerControls } from './player.js';
 import {
   CATALOG, catalogItem, catalogVariants, furnitureVariant, createFurniture, applyGhostMaterial,
+  applyFurnitureTextures,
 } from './furniture.js';
 import { START, FLOORS, ROOMS, mx, mz } from './plan.js';
 import { createMinimap, createRadar } from './minimap.js';
@@ -12,7 +13,8 @@ import {
   bindApartment, updateRoom, getRoomStyle, getStyleSnapshot, setStyleSnapshot,
   FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
 } from './style.js';
-import { FLOOR_DEFAULTS } from './textures.js';
+import { FLOOR_DEFAULTS, setSkyTexture } from './textures.js';
+import { loadPbr } from './pbr.js';
 
 const STORE_KEY = 'hourse-layout-v1';
 const SCHEMES_KEY = 'hourse-layout-schemes-v1';
@@ -26,7 +28,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.86;
+renderer.toneMappingExposure = 0.66;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.getElementById('app').appendChild(renderer.domElement);
 
@@ -35,10 +37,22 @@ scene.fog = new THREE.Fog(0xe4edf2, 26, 80);
 
 const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.05, 220);
 
+// 真实晴天 HDRI：Poly Haven / Kloofendal 48d Partly Cloudy (Pure Sky), CC0
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.32;
+pmrem.compileEquirectangularShader();
+const hdri = await new RGBELoader().loadAsync(
+  `${import.meta.env.BASE_URL}hdri/kloofendal_48d_partly_cloudy_puresky_1k.hdr`,
+);
+const envTexture = pmrem.fromEquirectangular(hdri).texture;
+scene.environment = envTexture;
+scene.environmentIntensity = 0.5;
 pmrem.dispose();
+
+hdri.mapping = THREE.EquirectangularReflectionMapping;
+setSkyTexture(hdri);
+
+await loadPbr();
+applyFurnitureTextures();
 
 const { colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions } = buildApartment(scene);
 bindApartment({ floorMeshes, wallMeshes, balcony });
@@ -552,6 +566,21 @@ renderStyleControls();
 settingsBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   settingsPanel.classList.toggle('hidden');
+});
+
+const ENV_KEY = 'hourse-env-v1';
+const envToggle = document.getElementById('env-toggle');
+
+function applyEnvLight(on) {
+  // 关掉环境光只影响室内补光与反射，窗外天空保持不变
+  scene.environment = on ? envTexture : null;
+}
+
+envToggle.checked = localStorage.getItem(ENV_KEY) !== 'off';
+applyEnvLight(envToggle.checked);
+envToggle.addEventListener('change', () => {
+  applyEnvLight(envToggle.checked);
+  localStorage.setItem(ENV_KEY, envToggle.checked ? 'on' : 'off');
 });
 
 langSelect.addEventListener('change', () => setLang(langSelect.value));

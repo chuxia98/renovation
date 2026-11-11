@@ -86,6 +86,7 @@ export const DICT = {
 
     'settings.title': 'Settings',
     'settings.language': 'Language',
+    'settings.env': 'Environment light',
     'settings.open': 'Settings',
 
     'overlay.kicker': 'Three.js · Real-time 3D',
@@ -251,6 +252,7 @@ export const DICT = {
 
     'settings.title': '设置',
     'settings.language': '语言',
+    'settings.env': '环境光',
     'settings.open': '设置',
 
     'overlay.kicker': 'Three.js · 实时 3D',

@@ -124,6 +124,10 @@ body.locked #app canvas {
   gap: 10px;
 }
 
+.settings-row + .settings-row {
+  margin-top: 10px;
+}
+
 .settings-row label {
   font-size: 11px;
   color: var(--ink-dim);
@@ -146,6 +150,48 @@ body.locked #app canvas {
 .settings-row select:focus {
   outline: none;
   border-color: rgba(224, 169, 109, 0.55);
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+  width: 34px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.switch:checked {
+  background: rgba(224, 169, 109, 0.3);
+  border-color: rgba(224, 169, 109, 0.6);
+}
+
+.switch:checked::after {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+
+.switch:focus-visible {
+  outline: 2px solid rgba(224, 169, 109, 0.55);
+  outline-offset: 2px;
 }
 
 #stats {

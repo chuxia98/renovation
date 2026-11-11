@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pbrSet } from './pbr.js';
 
 const ANISO = 16;
 // 法线/粗糙度贴图统一用 512，颜色贴图保持原分辨率
@@ -129,6 +130,24 @@ function buildWood(color, plankWidth) {
       g.fillStyle = rgba(shade(color, 0.5), 0.32);
       g.fillRect(x, y + 1, Math.max(1, rowH * 0.012), rowH - 1);
     }
+  }
+
+  // 真实橡木纹理叠加：底图只有 512，铺 2×2 覆盖 2 米画布
+  const grain = pbrSet('oak')?.color?.image;
+  if (grain) {
+    const tile = size / 2;
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    g.globalAlpha = 0.32;
+    g.translate(size / 2, size / 2);
+    g.rotate(Math.PI / 2);
+    g.translate(-size / 2, -size / 2);
+    for (let y = -tile * 2; y < size + tile * 2; y += tile) {
+      for (let x = -tile * 2; x < size + tile * 2; x += tile) {
+        g.drawImage(grain, x, y, tile, tile);
+      }
+    }
+    g.restore();
   }
 
   // 整体明暗
@@ -562,15 +581,26 @@ export function createFloorMaterial(kind, w, d, cfg = {}) {
 export function createWallMaterial(cfg = {}) {
   const conf = { ...WALL_DEFAULT, ...cfg };
   const map = wallTexture(conf);
-  const { normal, rough } = cachedRelief(
-    `wall|${conf.finish}|${conf.color.toLowerCase()}`,
-    () => buildRelief(wallCanvas(conf), { normalStrength: 0.9, baseRough: 0.9, roughRange: 0.25, blur: 2 }),
-  );
+  const plaster = pbrSet('plaster');
+  let normalMap;
+  let roughnessMap;
+  if (plaster) {
+    // 真实灰泥的微起伏；墙面 UV 已按 1.5 米一格换算
+    normalMap = plaster.normal;
+    roughnessMap = plaster.rough;
+  } else {
+    const relief = cachedRelief(
+      `wall|${conf.finish}|${conf.color.toLowerCase()}`,
+      () => buildRelief(wallCanvas(conf), { normalStrength: 0.9, baseRough: 0.9, roughRange: 0.25, blur: 2 }),
+    );
+    normalMap = toTexture(relief.normal, 1, false);
+    roughnessMap = toTexture(relief.rough, 1, false);
+  }
   return new THREE.MeshStandardMaterial({
     map,
-    normalMap: toTexture(normal, 1, false),
-    roughnessMap: toTexture(rough, 1, false),
-    normalScale: new THREE.Vector2(0.35, 0.35),
+    normalMap,
+    roughnessMap,
+    normalScale: new THREE.Vector2(0.38, 0.38),
     roughness: 1,
     metalness: 0,
     envMapIntensity: 0.15,
@@ -580,6 +610,11 @@ export function createWallMaterial(cfg = {}) {
 // ---------- 天空 ----------
 
 let skyBase = null;
+let skyOverride = null;
+
+export function setSkyTexture(tex) {
+  skyOverride = tex;
+}
 
 function buildSky() {
   const w = 1024;
@@ -631,6 +666,7 @@ function buildSky() {
 }
 
 export function skyTexture() {
+  if (skyOverride) return skyOverride;
   if (!skyBase) buildSky();
   const tex = new THREE.CanvasTexture(skyBase);
   tex.colorSpace = THREE.SRGBColorSpace;
