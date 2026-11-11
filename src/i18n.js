@@ -13,9 +13,9 @@ export const DICT = {
     'hud.subtitle': '3D Interior Walkthrough',
     'hud.loading': 'Loading…',
     'hud.stats': 'X {x} m · Z {z} m · {n} items',
-    'hud.hint': '<b>WASD</b> Move · <b>Mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture',
-    'hud.hintLock': '<b>WASD</b> Move · <b>Hold left mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture',
-    'hud.hintTouch': '<b>Joystick</b> Move · <b>Drag</b> Look',
+    'hud.hint': '<b>WASD</b> Move · <b>Mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture · <b>Click</b> Door',
+    'hud.hintLock': '<b>WASD</b> Move · <b>Hold left mouse</b> Look · <b>Wheel</b> Zoom · <b>Shift</b> Sprint · <b>G</b> Furniture · <b>Click</b> Door',
+    'hud.hintTouch': '<b>Joystick</b> Move · <b>Drag</b> Look · <b>Tap</b> Door',
 
     'mode.walkthrough': 'Walkthrough',
     'mode.build': 'Furniture Mode',
@@ -73,6 +73,11 @@ export const DICT = {
     'toast.updatedScheme': 'Updated "{name}" · {n} items',
     'toast.loadedScheme': 'Loaded "{name}" · {n} items',
     'toast.deletedScheme': 'Deleted "{name}"',
+    'toast.opened': '{name} opened',
+    'toast.closed': '{name} closed',
+
+    'interact.door': 'Door',
+    'interact.slider': 'Sliding door',
 
     'settings.title': 'Settings',
     'settings.language': 'Language',
@@ -132,9 +137,9 @@ export const DICT = {
     'hud.subtitle': '3D 室内漫游',
     'hud.loading': '加载中…',
     'hud.stats': 'X {x} m · Z {z} m · {n} 件家具',
-    'hud.hint': '<b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>滚轮</b> 缩放 · <b>Shift</b> 加速 · <b>G</b> 家具',
-    'hud.hintLock': '<b>WASD</b> 移动 · <b>按住左键</b> 转动视角 · <b>滚轮</b> 缩放 · <b>Shift</b> 加速 · <b>G</b> 家具',
-    'hud.hintTouch': '<b>摇杆</b> 移动 · <b>拖动</b> 视角',
+    'hud.hint': '<b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>滚轮</b> 缩放 · <b>Shift</b> 加速 · <b>G</b> 家具 · <b>点击</b> 开关门',
+    'hud.hintLock': '<b>WASD</b> 移动 · <b>按住左键</b> 转动视角 · <b>滚轮</b> 缩放 · <b>Shift</b> 加速 · <b>G</b> 家具 · <b>点击</b> 开关门',
+    'hud.hintTouch': '<b>摇杆</b> 移动 · <b>拖动</b> 视角 · <b>点按</b> 开关门',
 
     'mode.walkthrough': '漫游模式',
     'mode.build': '家具模式',
@@ -192,6 +197,11 @@ export const DICT = {
     'toast.updatedScheme': '已更新“{name}” · {n} 件',
     'toast.loadedScheme': '已载入“{name}” · {n} 件',
     'toast.deletedScheme': '已删除“{name}”',
+    'toast.opened': '已打开{name}',
+    'toast.closed': '已关闭{name}',
+
+    'interact.door': '门',
+    'interact.slider': '推拉门',
 
     'settings.title': '设置',
     'settings.language': '语言',

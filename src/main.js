@@ -38,8 +38,9 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.32;
 pmrem.dispose();
 
-const { colliders, floorMeshes, wallMeshes } = buildApartment(scene);
+const { colliders, floorMeshes, wallMeshes, interactions, updateInteractions } = buildApartment(scene);
 bindApartment({ floorMeshes, wallMeshes });
+const interactionRoots = interactions.flatMap((it) => it.roots);
 
 // ---------- 家具 ----------
 
@@ -62,6 +63,7 @@ function insideFloor(x, z) {
 
 function insideWall(x, z) {
   for (const c of colliders) {
+    if (c.enabled === false) continue;
     if (x >= c.minX && x <= c.maxX && z >= c.minZ && z <= c.maxZ) return true;
   }
   return false;
@@ -625,6 +627,21 @@ let ghostRot = 0;
 let ghostValid = false;
 const pointer = new THREE.Vector2(0, -0.35);
 const raycaster = new THREE.Raycaster();
+const INTERACT_REACH = 2.6;
+
+function toggleInteractive(ndcX, ndcY) {
+  raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+  const hits = raycaster.intersectObjects(interactionRoots, true);
+  if (!hits.length || hits[0].distance > INTERACT_REACH) return false;
+  let node = hits[0].object;
+  while (node && !node.userData.interact) node = node.parent;
+  if (!node) return false;
+  const it = node.userData.interact;
+  it.toggle();
+  const name = t(it.kind === 'door' ? 'interact.door' : 'interact.slider');
+  toast(t(it.open ? 'toast.opened' : 'toast.closed', { name }));
+  return true;
+}
 
 function selectType(id) {
   ghostType = id;
@@ -814,8 +831,10 @@ window.addEventListener('pointerup', (e) => {
     if (!ghostType) toast(t('toast.pickItem'));
     else if (!ghost || !ghost.visible) toast(t('toast.tapFloor'));
     else placeGhost();
-  } else if (!controls.locked && !isTouch) {
-    controls.lock();
+  } else {
+    const nx = controls.locked && !isTouch ? 0 : (e.clientX / window.innerWidth) * 2 - 1;
+    const ny = controls.locked && !isTouch ? 0 : -(e.clientY / window.innerHeight) * 2 + 1;
+    if (!toggleInteractive(nx, ny) && !controls.locked && !isTouch) controls.lock();
   }
 });
 
@@ -881,6 +900,7 @@ function loop(now) {
   last = now;
 
   controls.update(dt);
+  updateInteractions(dt);
 
   if (Math.abs(targetFov - camera.fov) > 0.01) {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);

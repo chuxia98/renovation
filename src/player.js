@@ -112,6 +112,7 @@ export class PlayerControls {
   hit(x, z) {
     const r = RADIUS;
     for (const c of this.colliders) {
+      if (c.enabled === false) continue;
       if (x > c.minX - r && x < c.maxX + r && z > c.minZ - r && z < c.maxZ + r) return true;
     }
     return false;

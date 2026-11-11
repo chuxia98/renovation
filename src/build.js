@@ -13,6 +13,7 @@ export function buildApartment(scene) {
   const colliders = [];
   const floorMeshes = [];
   const wallMeshes = [];
+  const interactions = [];
 
   // 房间矩形（米），用于判断墙体两侧归属
   const roomRects = FLOORS.map((f) => ({
@@ -100,7 +101,23 @@ export function buildApartment(scene) {
   }
 
   function addCollider(x1, x2, z1, z2) {
-    colliders.push({ minX: Math.min(x1, x2), maxX: Math.max(x1, x2), minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2) });
+    const collider = {
+      minX: Math.min(x1, x2), maxX: Math.max(x1, x2),
+      minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2),
+    };
+    colliders.push(collider);
+    return collider;
+  }
+
+  function setColliderRect(collider, x1, x2, z1, z2) {
+    collider.minX = Math.min(x1, x2);
+    collider.maxX = Math.max(x1, x2);
+    collider.minZ = Math.min(z1, z2);
+    collider.maxZ = Math.max(z1, z2);
+  }
+
+  function updateInteractions(dt) {
+    for (const it of interactions) it.update(dt);
   }
 
   // ---------- 地面 ----------
@@ -247,10 +264,12 @@ export function buildApartment(scene) {
       ? (dir > 0 ? 0 : Math.PI)
       : (dir > 0 ? -Math.PI / 2 : Math.PI / 2);
     const swing = THREE.MathUtils.degToRad(op.angle ?? 65);
+    const closedYaw = baseYaw;
+    const openYaw = baseYaw + swing;
 
     const group = new THREE.Group();
     group.position.set(hingeX, 0, hingeZ);
-    group.rotation.y = baseYaw + swing;
+    group.rotation.y = closedYaw;
     root.add(group);
 
     const leafW = span - 0.06;
@@ -286,6 +305,39 @@ export function buildApartment(scene) {
       rose.position.set(0.03 + leafW - 0.1, 1.02, side * 0.026);
       group.add(rose);
     }
+
+    // 关门时挡住门洞，开门后放行
+    const wallT = w.t / PX_PER_M;
+    const collider = o === 'v'
+      ? addCollider(c - wallT / 2, c + wallT / 2, op.a0, op.a1)
+      : addCollider(op.a0, op.a1, c - wallT / 2, c + wallT / 2);
+
+    let yaw = closedYaw;
+    let targetYaw = closedYaw;
+    const record = {
+      kind: 'door',
+      open: false,
+      roots: [group],
+      toggle() {
+        record.open = !record.open;
+        targetYaw = record.open ? openYaw : closedYaw;
+        if (record.open) collider.enabled = false;
+      },
+      update(dt) {
+        if (Math.abs(targetYaw - yaw) < 1e-3) {
+          if (yaw !== targetYaw) {
+            yaw = targetYaw;
+            group.rotation.y = yaw;
+          }
+          if (!record.open) collider.enabled = true;
+          return;
+        }
+        yaw += (targetYaw - yaw) * Math.min(1, dt * 7);
+        group.rotation.y = yaw;
+      },
+    };
+    group.userData.interact = record;
+    interactions.push(record);
   }
 
   // ---------- 推拉门 ----------
@@ -308,13 +360,17 @@ export function buildApartment(scene) {
     bar(op.a0 + 0.03, 0.06, yMid, h);
     bar(op.a1 - 0.03, 0.06, yMid, h);
 
+    const panels = [];
     for (let i = 0; i < 2; i++) {
       const ac = op.a0 + panelW * (i + 0.5);
-      const offset = (i === 0 ? -1 : 1) * 0.03;
-      const pc = c + offset;
+      const pc = c + (i === 0 ? -1 : 1) * 0.03;
+      const panel = new THREE.Group();
+      root.add(panel);
+      panels.push(panel);
+
       const frame = (a, y, hh, len) => {
-        if (o === 'v') box(0.06, hh, len, frameMat, pc, y, a);
-        else box(len, hh, 0.06, frameMat, a, y, pc);
+        if (o === 'v') box(0.06, hh, len, frameMat, pc, y, a, { parent: panel });
+        else box(len, hh, 0.06, frameMat, a, y, pc, { parent: panel });
       };
       // 面板边框
       if (o === 'v') {
@@ -322,20 +378,53 @@ export function buildApartment(scene) {
         frame(ac + panelW / 2 - 0.03, yMid, h - 0.1, 0.05);
         frame(ac, 0.1, 0.05, panelW - 0.06);
         frame(ac, h - 0.09, 0.05, panelW - 0.06);
-        box(0.016, h - 0.2, panelW - 0.12, glassMat, pc, yMid, ac, { cast: false, receive: false });
+        box(0.016, h - 0.2, panelW - 0.12, glassMat, pc, yMid, ac, { cast: false, receive: false, parent: panel });
       } else {
         frame(ac - panelW / 2 + 0.03, yMid, h - 0.1, 0.05);
         frame(ac + panelW / 2 - 0.03, yMid, h - 0.1, 0.05);
         frame(ac, 0.1, 0.05, panelW - 0.06);
         frame(ac, h - 0.09, 0.05, panelW - 0.06);
-        box(panelW - 0.12, h - 0.2, 0.016, glassMat, ac, yMid, pc, { cast: false, receive: false });
+        box(panelW - 0.12, h - 0.2, 0.016, glassMat, ac, yMid, pc, { cast: false, receive: false, parent: panel });
       }
     }
 
-    // 关闭的玻璃门，按墙体阻挡
-    const t = w.t / PX_PER_M;
-    if (o === 'v') addCollider(c - t / 2, c + t / 2, op.a0, op.a1);
-    else addCollider(op.a0, op.a1, c - t / 2, c + t / 2);
+    // 右扇向左滑到左扇后面，开启后只剩左半幅遮挡
+    const wallT = w.t / PX_PER_M;
+    const collider = o === 'v'
+      ? addCollider(c - wallT / 2, c + wallT / 2, op.a0, op.a1)
+      : addCollider(op.a0, op.a1, c - wallT / 2, c + wallT / 2);
+
+    const slide = o === 'v' ? 'z' : 'x';
+    let progress = 0;
+    let target = 0;
+
+    const applyProgress = (p) => {
+      panels[1].position[slide] = -panelW * p;
+      const edge = op.a1 - panelW * p;
+      if (o === 'v') setColliderRect(collider, c - wallT / 2, c + wallT / 2, op.a0, edge);
+      else setColliderRect(collider, op.a0, edge, c - wallT / 2, c + wallT / 2);
+    };
+
+    const record = {
+      kind: 'slider',
+      open: false,
+      roots: panels,
+      toggle() {
+        record.open = !record.open;
+        target = record.open ? 1 : 0;
+      },
+      update(dt) {
+        if (progress === target) return;
+        const step = dt * 1.5;
+        progress = target > progress
+          ? Math.min(target, progress + step)
+          : Math.max(target, progress - step);
+        const eased = progress * progress * (3 - 2 * progress);
+        applyProgress(eased);
+      },
+    };
+    for (const panel of panels) panel.userData.interact = record;
+    interactions.push(record);
   }
 
   // ---------- 飘窗 ----------
@@ -411,6 +500,7 @@ export function buildApartment(scene) {
 
   addRailing(mx(1318), mx(2103), mz(2470) - 0.03, 'h');
   addRailing(mz(2157), mz(2470), mx(2103) - 0.03, 'v');
+  addBalconyGlazing();
 
   function addRailing(from, to, at, axis) {
     const H = 1.08;
@@ -439,6 +529,53 @@ export function buildApartment(scene) {
       }
       addCollider(at - 0.05, at + 0.05, from, to);
     }
+  }
+
+  // 半封闭阳台：栏板上方补铝框玻璃，围合到顶
+  function addBalconyGlazing() {
+    const x0 = mx(1318);
+    const x1 = mx(2103) - 0.03;
+    const z0 = mz(2157);
+    const z1 = mz(2470) - 0.03;
+    const base = 1.08;
+    const top = WALL_H - 0.04;
+    const yMid = (base + top) / 2;
+    const glassH = top - base - 0.12;
+    const mullionH = top - base;
+
+    // 南侧
+    const southSpan = x1 - x0;
+    const southMid = (x0 + x1) / 2;
+    box(southSpan, 0.06, 0.07, frameMat, southMid, top, z1);
+    box(southSpan, 0.05, 0.07, frameMat, southMid, base, z1);
+    box(southSpan, 0.045, 0.06, frameMat, southMid, 2.02, z1);
+    const southN = Math.max(2, Math.round(southSpan / 1.05));
+    for (let i = 0; i <= southN; i++) {
+      box(0.06, mullionH, 0.06, frameMat, x0 + (southSpan * i) / southN, yMid, z1);
+    }
+    box(southSpan - 0.12, glassH, 0.014, glassMat, southMid, yMid, z1, { cast: false, receive: false });
+
+    // 东侧
+    const eastSpan = z1 - z0;
+    const eastMid = (z0 + z1) / 2;
+    box(0.07, 0.06, eastSpan, frameMat, x1, top, eastMid);
+    box(0.07, 0.05, eastSpan, frameMat, x1, base, eastMid);
+    box(0.06, 0.045, eastSpan, frameMat, x1, 2.02, eastMid);
+    const eastN = Math.max(2, Math.round(eastSpan / 1.05));
+    for (let i = 0; i <= eastN; i++) {
+      box(0.06, mullionH, 0.06, frameMat, x1, yMid, z0 + (eastSpan * i) / eastN);
+    }
+    box(0.014, glassH, eastSpan - 0.12, glassMat, x1, yMid, eastMid, { cast: false, receive: false });
+
+    // 北侧与客厅东外墙之间的缺口
+    const nx0 = mx(2052);
+    const notchSpan = x1 - nx0;
+    const notchMid = (nx0 + x1) / 2;
+    box(notchSpan, 0.06, 0.07, frameMat, notchMid, top, z0);
+    box(notchSpan, 0.05, 0.07, frameMat, notchMid, 0.04, z0);
+    box(0.06, top, 0.06, frameMat, nx0 + 0.03, top / 2, z0);
+    box(notchSpan - 0.1, top - 0.16, 0.014, glassMat, notchMid, top / 2, z0, { cast: false, receive: false });
+    addCollider(nx0, x1, z0 - 0.05, z0 + 0.05);
   }
 
   // ---------- 灯光 ----------
@@ -565,5 +702,5 @@ export function buildApartment(scene) {
     scene.add(b);
   }
 
-  return { root, colliders, floorMeshes, wallMeshes };
+  return { root, colliders, floorMeshes, wallMeshes, interactions, updateInteractions };
 }
