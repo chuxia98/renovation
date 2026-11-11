@@ -51,11 +51,9 @@ export const WALLS = [
     openings: [],
   },
   {
-    // 客餐厅东外墙：客厅一处窗
+    // 客餐厅东外墙（实墙）
     o: 'v', at: 2034, from: 688, to: 2157, t: 37,
-    openings: [
-      { from: 1316, to: 1448, sill: 0.9, top: 2.3, kind: 'window' },
-    ],
+    openings: [],
   },
   {
     // 厨房北外墙

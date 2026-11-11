@@ -2,12 +2,33 @@ import * as THREE from 'three';
 import { FLOORS, ROOMS } from './plan.js';
 import { createFloorMaterial, createWallMaterial, FLOOR_DEFAULTS, WALL_DEFAULT } from './textures.js';
 
-const STORAGE_KEY = 'hourse-style-v1';
+const STORAGE_KEY = 'hourse-style-v2';
 
+// 木地板是板宽（米）；瓷砖/石材是实际砖规格（米）×（米）
 export const FLOOR_SIZES = {
   wood: [0.09, 0.12, 0.15, 0.18, 0.2],
-  tile: [0.3, 0.45, 0.6, 0.8, 1.2],
-  stone: [0.6, 0.8, 1.0],
+  tile: [
+    { w: 0.3, d: 0.3 },
+    { w: 0.4, d: 0.4 },
+    { w: 0.6, d: 0.6 },
+    { w: 0.8, d: 0.8 },
+    { w: 0.6, d: 1.2 },
+    { w: 0.75, d: 1.5 },
+  ],
+  stone: [
+    { w: 0.6, d: 0.6 },
+    { w: 0.8, d: 0.8 },
+    { w: 1.0, d: 1.0 },
+  ],
+};
+
+// 按空间给默认规格：卫生间/阳台用小规格防滑砖，厅厨走廊用常规砖
+const ROOM_FLOOR_SIZES = {
+  bath: { w: 0.3, d: 0.3 },
+  corridor: { w: 0.6, d: 0.6 },
+  kitchen: { w: 0.6, d: 0.6 },
+  balcony: { w: 0.3, d: 0.3 },
+  porch: { w: 0.8, d: 0.8 },
 };
 
 export const FLOOR_SWATCHES = {
@@ -18,13 +39,17 @@ export const FLOOR_SWATCHES = {
 
 export const WALL_SWATCHES = ['#efeae2', '#f5f0e6', '#d8d2c6', '#c3cbb8', '#b7c4c9', '#d7b8a5', '#5a5d5c'];
 
+export const BALCONY_MODES = ['solid', 'glass'];
+
 function defaultRoomStyle(roomId) {
   const floor = FLOORS.find((f) => f.room === roomId);
   const kind = floor ? floor.mat : 'wood';
-  return {
-    floor: { kind, ...FLOOR_DEFAULTS[kind] },
+  const style = {
+    floor: { kind, ...FLOOR_DEFAULTS[kind], ...(ROOM_FLOOR_SIZES[roomId] || {}) },
     wall: { ...WALL_DEFAULT },
   };
+  if (roomId === 'balcony') style.enclosure = 'solid';
+  return style;
 }
 
 export function defaultStyle() {
@@ -43,6 +68,7 @@ function loadStyle() {
       if (!saved) continue;
       if (saved.floor) base[r.id].floor = { ...base[r.id].floor, ...saved.floor };
       if (saved.wall) base[r.id].wall = { ...base[r.id].wall, ...saved.wall };
+      if (saved.enclosure) base[r.id].enclosure = saved.enclosure;
     }
   } catch {
     // 存储损坏时回落到默认样式
@@ -53,6 +79,7 @@ function loadStyle() {
 let style = loadStyle();
 let floors = [];
 let walls = [];
+let balcony = null;
 let neutralWallMat = null;
 const wallMatCache = new Map();
 
@@ -90,7 +117,7 @@ function applyFloorMesh(mesh) {
   const conf = style[roomId].floor;
   const { w, d } = mesh.userData.floorSize;
   disposeFloorMaterial(mesh.material);
-  mesh.material = createFloorMaterial(conf.kind, w, d, { color: conf.color, size: conf.size });
+  mesh.material = createFloorMaterial(conf.kind, w, d, conf);
 }
 
 function applyWallMesh(mesh) {
@@ -111,11 +138,13 @@ function applyWalls() {
   for (const mesh of walls) applyWallMesh(mesh);
 }
 
-export function bindApartment({ floorMeshes, wallMeshes }) {
+export function bindApartment({ floorMeshes, wallMeshes, balcony: balconyController }) {
   floors = floorMeshes;
   walls = wallMeshes;
+  balcony = balconyController;
   applyFloors();
   applyWalls();
+  balcony?.setMode(style.balcony.enclosure);
 }
 
 export function getStyle() {
@@ -129,7 +158,9 @@ export function getRoomStyle(roomId) {
 export function updateRoom(roomId, patch) {
   const room = style[roomId];
   if (patch.floor) {
-    room.floor = { ...room.floor, ...patch.floor };
+    // 换地板类型时整组替换，避免木地板板宽和瓷砖规格字段互相残留
+    const changingKind = patch.floor.kind && patch.floor.kind !== room.floor.kind;
+    room.floor = changingKind ? { ...patch.floor } : { ...room.floor, ...patch.floor };
     for (const mesh of floors) {
       if (mesh.userData.roomId === roomId) applyFloorMesh(mesh);
     }
@@ -138,6 +169,10 @@ export function updateRoom(roomId, patch) {
     room.wall = { ...room.wall, ...patch.wall };
     // 墙体可能同时属于两个房间，直接全量刷新
     applyWalls();
+  }
+  if (patch.enclosure) {
+    room.enclosure = patch.enclosure;
+    if (roomId === 'balcony') balcony?.setMode(room.enclosure);
   }
   persist();
 }
@@ -154,10 +189,12 @@ export function setStyleSnapshot(snapshot) {
       if (!saved) continue;
       if (saved.floor) base[r.id].floor = { ...base[r.id].floor, ...saved.floor };
       if (saved.wall) base[r.id].wall = { ...base[r.id].wall, ...saved.wall };
+      if (saved.enclosure) base[r.id].enclosure = saved.enclosure;
     }
   }
   style = base;
   persist();
   applyFloors();
   applyWalls();
+  balcony?.setMode(style.balcony.enclosure);
 }

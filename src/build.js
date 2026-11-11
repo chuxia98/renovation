@@ -80,10 +80,6 @@ export function buildApartment(scene) {
     color: 0xc4dce4, transparent: true, opacity: 0.17, roughness: 0.05, metalness: 0,
     side: THREE.DoubleSide, depthWrite: false,
   });
-  const railGlassMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd2e4e6, transparent: true, opacity: 0.22, roughness: 0.08, metalness: 0,
-    side: THREE.DoubleSide, depthWrite: false,
-  });
   const metalMat = new THREE.MeshStandardMaterial({ color: 0x8b9094, roughness: 0.33, metalness: 0.82 });
   const lampMat = new THREE.MeshStandardMaterial({
     color: 0x2a2622, emissive: 0xffe4b8, emissiveIntensity: 2.6, roughness: 0.4,
@@ -464,11 +460,10 @@ export function buildApartment(scene) {
       box(fw, 0.06, span, frameMat, gx, bay.top - 0.03, midZ);
       for (const zc of [z0 + 0.035, midZ, z1 - 0.035]) box(fw, h, 0.06, frameMat, gx, yMid, zc);
 
-      // 两侧玻璃
+      // 两侧实墙
       for (const zc of [z0 + 0.03, z1 - 0.03]) {
-        box(depth - 0.06, h - 0.1, 0.016, glassMat, (outerX + bayOuter) / 2, yMid, zc, { cast: false, receive: false });
-        box(depth, 0.06, 0.05, frameMat, (outerX + bayOuter) / 2, bay.sill + 0.03, zc);
-        box(depth, 0.06, 0.05, frameMat, (outerX + bayOuter) / 2, bay.top - 0.03, zc);
+        const side = box(depth + 0.06, h, 0.06, wallMat, (outerX + bayOuter) / 2, yMid, zc);
+        scaleWallUVs(side.geometry, depth + 0.06, h, 0.06);
       }
     } else {
       const c = mz(wall.at);
@@ -489,93 +484,80 @@ export function buildApartment(scene) {
       for (const xc of [x0 + 0.035, midX, x1 - 0.035]) box(0.06, h, fw, frameMat, xc, yMid, gz);
 
       for (const xc of [x0 + 0.03, x1 - 0.03]) {
-        box(0.016, h - 0.1, depth - 0.06, glassMat, xc, yMid, (outerZ + bayOuter) / 2, { cast: false, receive: false });
-        box(0.05, 0.06, depth, frameMat, xc, bay.sill + 0.03, (outerZ + bayOuter) / 2);
-        box(0.05, 0.06, depth, frameMat, xc, bay.top - 0.03, (outerZ + bayOuter) / 2);
+        const side = box(0.06, h, depth + 0.06, wallMat, xc, yMid, (outerZ + bayOuter) / 2);
+        scaleWallUVs(side.geometry, 0.06, h, depth + 0.06);
       }
     }
   }
 
-  // ---------- 阳台栏杆 ----------
+  // ---------- 阳台半封闭围护 ----------
 
-  addRailing(mx(1318), mx(2103), mz(2470) - 0.03, 'h');
-  addRailing(mz(2157), mz(2470), mx(2103) - 0.03, 'v');
-  addBalconyGlazing();
+  const eastWallT = 0.12;
+  const eastWallX = mx(2103) - eastWallT / 2;
+  const balconySolid = new THREE.Group();
+  const balconyGlass = new THREE.Group();
+  balconySolid.name = 'balcony-solid';
+  balconyGlass.name = 'balcony-glass';
+  root.add(balconySolid, balconyGlass);
+  addBalconyEnclosure(eastWallX, eastWallT);
 
-  function addRailing(from, to, at, axis) {
-    const H = 1.08;
-    const glassH = 0.9;
-    const span = to - from;
-    const mid = (from + to) / 2;
+  const balcony = {
+    setMode(mode) {
+      const solid = mode !== 'glass';
+      balconySolid.visible = solid;
+      balconyGlass.visible = !solid;
+    },
+  };
 
-    if (axis === 'h') {
-      box(span, 0.05, 0.08, metalMat, mid, H, at);
-      box(span, 0.04, 0.06, metalMat, mid, 0.06, at);
-      box(span, glassH, 0.015, railGlassMat, mid, 0.12 + glassH / 2, at, { cast: false, receive: false });
-      const n = Math.max(2, Math.round(span / 1.05));
-      for (let i = 0; i <= n; i++) {
-        const x = from + (span * i) / n;
-        box(0.045, H, 0.045, metalMat, x, H / 2, at);
-      }
-      addCollider(from, to, at - 0.05, at + 0.05);
-    } else {
-      box(0.08, 0.05, span, metalMat, at, H, mid);
-      box(0.06, 0.04, span, metalMat, at, 0.06, mid);
-      box(0.015, glassH, span, railGlassMat, at, 0.12 + glassH / 2, mid, { cast: false, receive: false });
-      const n = Math.max(2, Math.round(span / 1.05));
-      for (let i = 0; i <= n; i++) {
-        const z = from + (span * i) / n;
-        box(0.045, H, 0.045, metalMat, at, H / 2, z);
-      }
-      addCollider(at - 0.05, at + 0.05, from, to);
-    }
-  }
-
-  // 半封闭阳台：栏板上方补铝框玻璃，围合到顶
-  function addBalconyGlazing() {
+  // 半封闭阳台：两侧实墙，正面可选 1.3m 实墙 + 上方玻璃，或整面落地玻璃
+  function addBalconyEnclosure(eastX, eastT) {
     const x0 = mx(1318);
-    const x1 = mx(2103) - 0.03;
+    const x1 = eastX - eastT / 2;
     const z0 = mz(2157);
-    const z1 = mz(2470) - 0.03;
-    const base = 1.08;
+    const zEnd = mz(2470);
+    const southT = 0.12;
+    const southZ = zEnd - southT / 2;
+    const parapetH = 1.3;
     const top = WALL_H - 0.04;
-    const yMid = (base + top) / 2;
-    const glassH = top - base - 0.12;
-    const mullionH = top - base;
 
-    // 南侧
+    // 东侧实墙
+    const east = box(eastT, WALL_H, zEnd - z0, wallMat, eastX, WALL_H / 2, (z0 + zEnd) / 2);
+    scaleWallUVs(east.geometry, eastT, WALL_H, zEnd - z0);
+    addCollider(eastX - eastT / 2, eastX + eastT / 2, z0, zEnd);
+
     const southSpan = x1 - x0;
     const southMid = (x0 + x1) / 2;
-    box(southSpan, 0.06, 0.07, frameMat, southMid, top, z1);
-    box(southSpan, 0.05, 0.07, frameMat, southMid, base, z1);
-    box(southSpan, 0.045, 0.06, frameMat, southMid, 2.02, z1);
-    const southN = Math.max(2, Math.round(southSpan / 1.05));
-    for (let i = 0; i <= southN; i++) {
-      box(0.06, mullionH, 0.06, frameMat, x0 + (southSpan * i) / southN, yMid, z1);
-    }
-    box(southSpan - 0.12, glassH, 0.014, glassMat, southMid, yMid, z1, { cast: false, receive: false });
 
-    // 东侧
-    const eastSpan = z1 - z0;
-    const eastMid = (z0 + z1) / 2;
-    box(0.07, 0.06, eastSpan, frameMat, x1, top, eastMid);
-    box(0.07, 0.05, eastSpan, frameMat, x1, base, eastMid);
-    box(0.06, 0.045, eastSpan, frameMat, x1, 2.02, eastMid);
-    const eastN = Math.max(2, Math.round(eastSpan / 1.05));
-    for (let i = 0; i <= eastN; i++) {
-      box(0.06, mullionH, 0.06, frameMat, x1, yMid, z0 + (eastSpan * i) / eastN);
-    }
-    box(0.014, glassH, eastSpan - 0.12, glassMat, x1, yMid, eastMid, { cast: false, receive: false });
+    // 南侧正面矮墙
+    const south = box(southSpan, parapetH, southT, wallMat, southMid, parapetH / 2, southZ, { parent: balconySolid });
+    scaleWallUVs(south.geometry, southSpan, parapetH, southT);
+    addCollider(x0, x1, southZ - southT / 2, southZ + southT / 2);
 
-    // 北侧与客厅东外墙之间的缺口
+    addFrontGlazing(balconySolid, x0, x1, southZ, parapetH, top, true);
+    addFrontGlazing(balconyGlass, x0, x1, southZ, 0.08, top, false);
+
+    // 北侧与客厅东外墙之间的缺口，补实墙
     const nx0 = mx(2052);
-    const notchSpan = x1 - nx0;
-    const notchMid = (nx0 + x1) / 2;
-    box(notchSpan, 0.06, 0.07, frameMat, notchMid, top, z0);
-    box(notchSpan, 0.05, 0.07, frameMat, notchMid, 0.04, z0);
-    box(0.06, top, 0.06, frameMat, nx0 + 0.03, top / 2, z0);
-    box(notchSpan - 0.1, top - 0.16, 0.014, glassMat, notchMid, top / 2, z0, { cast: false, receive: false });
-    addCollider(nx0, x1, z0 - 0.05, z0 + 0.05);
+    const notch = box(x1 - nx0, WALL_H, eastT, wallMat, (nx0 + x1) / 2, WALL_H / 2, z0);
+    scaleWallUVs(notch.geometry, x1 - nx0, WALL_H, eastT);
+    addCollider(nx0, x1, z0 - eastT / 2, z0 + eastT / 2);
+
+    function addFrontGlazing(parent, gx0, gx1, z, base, glassTop, transom) {
+      const span = gx1 - gx0;
+      const mid = (gx0 + gx1) / 2;
+      const yMid = (base + glassTop) / 2;
+      const glassH = glassTop - base - 0.12;
+      const mullionH = glassTop - base;
+
+      box(span, 0.06, 0.07, frameMat, mid, glassTop, z, { parent });
+      box(span, 0.05, 0.07, frameMat, mid, base, z, { parent });
+      if (transom) box(span, 0.045, 0.06, frameMat, mid, 2.2, z, { parent });
+      const n = Math.max(2, Math.round(span / 1.05));
+      for (let i = 0; i <= n; i++) {
+        box(0.06, mullionH, 0.06, frameMat, gx0 + (span * i) / n, yMid, z, { parent });
+      }
+      box(span - 0.12, glassH, 0.014, glassMat, mid, yMid, z, { parent, cast: false, receive: false });
+    }
   }
 
   // ---------- 灯光 ----------
@@ -702,5 +684,5 @@ export function buildApartment(scene) {
     scene.add(b);
   }
 
-  return { root, colliders, floorMeshes, wallMeshes, interactions, updateInteractions };
+  return { root, colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions };
 }

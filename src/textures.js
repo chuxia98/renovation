@@ -11,8 +11,8 @@ export const WALL_TEX_METERS = 1.5;
 
 export const FLOOR_DEFAULTS = {
   wood: { color: '#9c6f47', size: 0.2 },
-  tile: { color: '#e2dfd8', size: 0.6 },
-  stone: { color: '#a9a49b', size: 0.8 },
+  tile: { color: '#e2dfd8', w: 0.8, d: 0.8 },
+  stone: { color: '#a9a49b', w: 0.8, d: 0.8 },
 };
 
 export const WALL_DEFAULT = { finish: 'paint', color: '#efeae2' };
@@ -30,10 +30,10 @@ function cachedCanvas(key, build) {
   return canvas;
 }
 
-function makeCanvas(size) {
+function makeCanvas(width, height = width) {
   const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
+  c.width = width;
+  c.height = height;
   return c;
 }
 
@@ -79,7 +79,9 @@ function rgba(hex, alpha) {
 }
 
 function cfgKey(kind, cfg) {
-  return `${kind}|${cfg.color.toLowerCase()}|${Number(cfg.size ?? 0).toFixed(3)}`;
+  const base = `${kind}|${cfg.color.toLowerCase()}`;
+  if (kind === 'wood') return `${base}|${Number(cfg.size ?? 0).toFixed(3)}`;
+  return `${base}|${Number(cfg.w ?? 0).toFixed(3)}x${Number(cfg.d ?? 0).toFixed(3)}`;
 }
 
 // ---------- 木地板 ----------
@@ -141,8 +143,8 @@ function buildWood(color, plankWidth) {
 }
 
 function floorCanvas(kind, conf) {
-  if (kind === 'tile') return cachedCanvas(cfgKey('tile', conf), () => buildTile(conf.color));
-  if (kind === 'stone') return cachedCanvas(cfgKey('stone', conf), () => buildStone(conf.color));
+  if (kind === 'tile') return cachedCanvas(cfgKey('tile', conf), () => buildTile(conf));
+  if (kind === 'stone') return cachedCanvas(cfgKey('stone', conf), () => buildStone(conf));
   return cachedCanvas(cfgKey('wood', conf), () => buildWood(conf.color, conf.size));
 }
 
@@ -153,46 +155,118 @@ export function woodFloorTexture(w, d, cfg = {}) {
   return tex;
 }
 
-// ---------- 地砖（一张贴图 2×2 块） ----------
+// ---------- 地砖 / 石材（一张贴图 2×2 块） ----------
 
-function buildTile(color) {
-  const size = 512;
-  const c = makeCanvas(size);
+// 按实际砖规格生成画布：长边 1024，短边等比缩小，保证矩形砖不被拉伸
+function paverLayout(w, d, groutMm) {
+  const long = 1024;
+  const cw = w >= d ? long : Math.round((long * w) / d);
+  const ch = d >= w ? long : Math.round((long * d) / w);
+  const pxPerM = cw / (w * 2);
+  const grout = Math.max(1, Math.round((groutMm / 1000) * pxPerM));
+  return { cw, ch, grout, cellW: cw / 2, cellH: ch / 2 };
+}
+
+function buildTile({ color, w, d }) {
+  // 瓷质砖留缝 2mm；小规格防滑砖缝稍宽
+  const groutMm = w <= 0.4 ? 3 : 2;
+  const { cw, ch, grout, cellW, cellH } = paverLayout(w, d, groutMm);
+  const c = makeCanvas(cw, ch);
   const g = c.getContext('2d');
   const rnd = rand(4421);
 
-  const grout = shade(color, 0.86);
-  g.fillStyle = grout;
-  g.fillRect(0, 0, size, size);
+  g.fillStyle = shade(color, 0.82);
+  g.fillRect(0, 0, cw, ch);
 
-  const cell = size / 2;
   for (let i = 0; i < 2; i++) {
     for (let j = 0; j < 2; j++) {
-      const tone = 0.965 + rnd() * 0.06;
+      const x = i * cellW + grout / 2;
+      const y = j * cellH + grout / 2;
+      const tw = cellW - grout;
+      const th = cellH - grout;
+      const tone = 0.975 + rnd() * 0.05;
       g.fillStyle = shade(color, tone);
-      g.fillRect(i * cell + 2, j * cell + 2, cell - 4, cell - 4);
+      g.fillRect(x, y, tw, th);
+
+      g.save();
+      g.beginPath();
+      g.rect(x, y, tw, th);
+      g.clip();
+
+      // 柔光釉面的斜向明暗
+      const sheen = g.createLinearGradient(x, y, x + tw, y + th);
+      sheen.addColorStop(0, 'rgba(255,255,255,0.05)');
+      sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
+      sheen.addColorStop(1, 'rgba(0,0,0,0.035)');
+      g.fillStyle = sheen;
+      g.fillRect(x, y, tw, th);
+
+      // 大板砖的淡雅石纹
+      const veins = 2 + Math.round(w * d * 3);
+      for (let v = 0; v < veins; v++) {
+        g.strokeStyle = rgba(shade(color, rnd() > 0.5 ? 0.62 : 1.15), 0.04 + rnd() * 0.05);
+        g.lineWidth = 0.6 + rnd() * 1.8;
+        const sx = x + rnd() * tw;
+        const sy = y + rnd() * th;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.bezierCurveTo(
+          sx + (rnd() - 0.5) * tw * 0.8, sy + rnd() * th * 0.5,
+          sx + (rnd() - 0.5) * tw * 0.8, sy + th * 0.5 + rnd() * th * 0.4,
+          sx + (rnd() - 0.5) * tw * 0.6, y + th,
+        );
+        g.stroke();
+      }
+
+      // 细颗粒
+      const grains = Math.round(24 + w * d * 40);
+      for (let k = 0; k < grains; k++) {
+        g.fillStyle = rgba(rnd() > 0.5 ? '#ffffff' : shade(color, 0.6), 0.08 + rnd() * 0.1);
+        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 1.6, 1 + rnd() * 1.6);
+      }
+      g.restore();
+
+      // 砖边倒角的一线高光
+      g.strokeStyle = rgba(shade(color, 0.72), 0.35);
+      g.lineWidth = 1;
+      g.strokeRect(x + 0.5, y + 0.5, tw - 1, th - 1);
     }
   }
 
-  // 细腻石纹
-  g.globalAlpha = 0.16;
-  for (let i = 0; i < 260; i++) {
-    g.fillStyle = rnd() > 0.5 ? '#ffffff' : shade(color, 0.62);
-    const x = rnd() * size;
-    const y = rnd() * size;
-    g.fillRect(x, y, 1 + rnd() * 2, 1 + rnd() * 2);
-  }
-  g.globalAlpha = 1;
+  return c;
+}
 
-  // 十字砖缝
-  g.strokeStyle = shade(color, 0.7);
-  g.lineWidth = 3;
-  g.beginPath();
-  g.moveTo(cell, 0);
-  g.lineTo(cell, size);
-  g.moveTo(0, cell);
-  g.lineTo(size, cell);
-  g.stroke();
+function buildStone({ color, w, d }) {
+  const { cw, ch, grout, cellW, cellH } = paverLayout(w, d, 2.5);
+  const c = makeCanvas(cw, ch);
+  const g = c.getContext('2d');
+  const rnd = rand(771);
+
+  g.fillStyle = shade(color, 0.78);
+  g.fillRect(0, 0, cw, ch);
+
+  for (let i = 0; i < 2; i++) {
+    for (let j = 0; j < 2; j++) {
+      const x = i * cellW + grout / 2;
+      const y = j * cellH + grout / 2;
+      const tw = cellW - grout;
+      const th = cellH - grout;
+      const tone = 0.9 + rnd() * 0.16;
+      g.fillStyle = shade(color, tone);
+      g.fillRect(x, y, tw, th);
+
+      g.save();
+      g.beginPath();
+      g.rect(x, y, tw, th);
+      g.clip();
+      const grains = Math.round(40 + w * d * 90);
+      for (let k = 0; k < grains; k++) {
+        g.fillStyle = rgba(rnd() > 0.45 ? shade(color, 0.6) : shade(color, 1.25), 0.1 + rnd() * 0.16);
+        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 3, 1 + rnd() * 2);
+      }
+      g.restore();
+    }
+  }
 
   return c;
 }
@@ -200,48 +274,17 @@ function buildTile(color) {
 export function tileFloorTexture(w, d, cfg = {}) {
   const conf = { ...FLOOR_DEFAULTS.tile, ...cfg };
   const tex = toTexture(floorCanvas('tile', conf));
-  // 贴图里是 2×2 块，覆盖 2 × size 米
-  const span = conf.size * 2;
-  tex.repeat.set(w / span, d / span);
+  // 贴图里是 2×2 块，覆盖 2 × w 米、2 × d 米
+  tex.repeat.set(w / (conf.w * 2), d / (conf.d * 2));
   return tex;
 }
 
 // ---------- 入户石材（一张贴图 2×2 块） ----------
 
-function buildStone(color) {
-  const size = 512;
-  const c = makeCanvas(size);
-  const g = c.getContext('2d');
-  const rnd = rand(771);
-
-  const grout = shade(color, 0.8);
-  g.fillStyle = grout;
-  g.fillRect(0, 0, size, size);
-
-  const cell = size / 2;
-  for (let i = 0; i < 2; i++) {
-    for (let j = 0; j < 2; j++) {
-      const tone = 0.9 + rnd() * 0.16;
-      g.fillStyle = shade(color, tone);
-      g.fillRect(i * cell + 2, j * cell + 2, cell - 4, cell - 4);
-    }
-  }
-
-  g.globalAlpha = 0.22;
-  for (let i = 0; i < 400; i++) {
-    g.fillStyle = rnd() > 0.45 ? shade(color, 0.6) : shade(color, 1.25);
-    g.fillRect(rnd() * size, rnd() * size, 1 + rnd() * 3, 1 + rnd() * 2);
-  }
-  g.globalAlpha = 1;
-
-  return c;
-}
-
 export function stoneFloorTexture(w, d, cfg = {}) {
   const conf = { ...FLOOR_DEFAULTS.stone, ...cfg };
   const tex = toTexture(floorCanvas('stone', conf));
-  const span = conf.size * 2;
-  tex.repeat.set(w / span, d / span);
+  tex.repeat.set(w / (conf.w * 2), d / (conf.d * 2));
   return tex;
 }
 
@@ -480,7 +523,7 @@ export function createFloorMaterial(kind, w, d, cfg = {}) {
   const surf = FLOOR_SURFACE[kind] || FLOOR_SURFACE.wood;
   const map = floorTexture(kind, w, d, conf);
   const { normal, rough } = cachedRelief(
-    `floor|${kind}|${conf.color.toLowerCase()}|${Number(conf.size).toFixed(3)}`,
+    `floor|${cfgKey(kind, conf)}`,
     () => buildRelief(floorCanvas(kind, conf), surf),
   );
   const normalMap = toTexture(normal, 1, false);

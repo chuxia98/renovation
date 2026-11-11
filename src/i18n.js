@@ -49,6 +49,9 @@ export const DICT = {
     'style.finish.linen': 'Linen',
     'style.finish.stripe': 'Stripe',
     'style.finish.grid': 'Grid',
+    'style.balcony': 'Balcony front',
+    'style.balcony.solid': 'Solid wall 1.3 m',
+    'style.balcony.glass': 'Floor-to-ceiling glass',
 
     'scheme.title': 'Layouts',
     'scheme.subtitle': 'Saved in this browser · Load anytime',
@@ -173,6 +176,9 @@ export const DICT = {
     'style.finish.linen': '亚麻',
     'style.finish.stripe': '条纹',
     'style.finish.grid': '格纹',
+    'style.balcony': '阳台围护',
+    'style.balcony.solid': '实墙 1.3 m',
+    'style.balcony.glass': '落地玻璃',
 
     'scheme.title': '布局方案',
     'scheme.subtitle': '保存在本浏览器 · 随时载入',

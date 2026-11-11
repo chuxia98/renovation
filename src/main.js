@@ -38,8 +38,8 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.32;
 pmrem.dispose();
 
-const { colliders, floorMeshes, wallMeshes, interactions, updateInteractions } = buildApartment(scene);
-bindApartment({ floorMeshes, wallMeshes });
+const { colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions } = buildApartment(scene);
+bindApartment({ floorMeshes, wallMeshes, balcony });
 const interactionRoots = interactions.flatMap((it) => it.roots);
 
 // ---------- 家具 ----------
@@ -414,6 +414,8 @@ const floorSizeEl = document.getElementById('style-floor-size');
 const wallFinishEl = document.getElementById('style-wall-finish');
 const wallSwatchesEl = document.getElementById('style-wall-swatches');
 const wallColorEl = document.getElementById('style-wall-color');
+const balconyModeEl = document.getElementById('style-balcony-mode');
+const balconyRowEl = document.getElementById('style-balcony-row');
 
 let styleRoom = ROOMS[0].id;
 
@@ -438,16 +440,20 @@ function renderSwatches(el, colors, active, onPick) {
   }
 }
 
-function renderFloorSizes(kind, size) {
+function renderFloorSizes(kind, conf) {
   floorSizeEl.textContent = '';
-  for (const v of FLOOR_SIZES[kind]) {
+  for (const f of FLOOR_SIZES[kind]) {
     const opt = document.createElement('option');
-    opt.value = String(v);
-    const cm = Math.round(v * 100);
-    opt.textContent = kind === 'wood' ? t('style.plankSize', { cm }) : `${cm} cm`;
+    if (kind === 'wood') {
+      opt.value = String(f);
+      opt.textContent = t('style.plankSize', { cm: Math.round(f * 100) });
+    } else {
+      opt.value = `${f.w}x${f.d}`;
+      opt.textContent = `${Math.round(f.w * 100)}×${Math.round(f.d * 100)} cm`;
+    }
     floorSizeEl.appendChild(opt);
   }
-  floorSizeEl.value = String(size);
+  floorSizeEl.value = kind === 'wood' ? String(conf.size) : `${conf.w}x${conf.d}`;
 }
 
 function renderStyleControls() {
@@ -460,7 +466,7 @@ function renderStyleControls() {
     renderStyleControls();
   });
   floorColorEl.value = conf.floor.color;
-  renderFloorSizes(conf.floor.kind, conf.floor.size);
+  renderFloorSizes(conf.floor.kind, conf.floor);
 
   for (const btn of wallFinishEl.children) btn.classList.toggle('active', btn.dataset.finish === conf.wall.finish);
   renderSwatches(wallSwatchesEl, WALL_SWATCHES, conf.wall.color, (color) => {
@@ -468,6 +474,11 @@ function renderStyleControls() {
     renderStyleControls();
   });
   wallColorEl.value = conf.wall.color;
+
+  balconyRowEl.classList.toggle('hidden', styleRoom !== 'balcony');
+  if (styleRoom === 'balcony') {
+    for (const btn of balconyModeEl.children) btn.classList.toggle('active', btn.dataset.mode === conf.enclosure);
+  }
 }
 
 styleRoomEl.addEventListener('change', () => {
@@ -490,7 +501,13 @@ floorColorEl.addEventListener('change', () => {
 });
 
 floorSizeEl.addEventListener('change', () => {
-  updateRoom(styleRoom, { floor: { size: Number(floorSizeEl.value) } });
+  const kind = getRoomStyle(styleRoom).floor.kind;
+  if (kind === 'wood') {
+    updateRoom(styleRoom, { floor: { size: Number(floorSizeEl.value) } });
+  } else {
+    const [w, d] = floorSizeEl.value.split('x').map(Number);
+    updateRoom(styleRoom, { floor: { w, d } });
+  }
 });
 
 wallFinishEl.addEventListener('click', (e) => {
@@ -502,6 +519,13 @@ wallFinishEl.addEventListener('click', (e) => {
 
 wallColorEl.addEventListener('change', () => {
   updateRoom(styleRoom, { wall: { color: wallColorEl.value } });
+  renderStyleControls();
+});
+
+balconyModeEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || getRoomStyle('balcony').enclosure === btn.dataset.mode) return;
+  updateRoom('balcony', { enclosure: btn.dataset.mode });
   renderStyleControls();
 });
 
