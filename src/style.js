@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FLOORS, ROOMS } from './plan.js';
-import { floorTexture, wallTexture, FLOOR_DEFAULTS, WALL_DEFAULT } from './textures.js';
+import { createFloorMaterial, createWallMaterial, FLOOR_DEFAULTS, WALL_DEFAULT } from './textures.js';
 
 const STORAGE_KEY = 'hourse-style-v1';
 
@@ -63,7 +63,7 @@ function persist() {
 function wallMaterial(roomId) {
   if (!roomId || !style[roomId]) {
     if (!neutralWallMat) {
-      neutralWallMat = new THREE.MeshStandardMaterial({ map: wallTexture(), roughness: 0.95, metalness: 0 });
+      neutralWallMat = createWallMaterial();
     }
     return neutralWallMat;
   }
@@ -71,27 +71,26 @@ function wallMaterial(roomId) {
   const key = `${roomId}|${conf.finish}|${conf.color}`;
   let mat = wallMatCache.get(key);
   if (!mat) {
-    mat = new THREE.MeshStandardMaterial({
-      map: wallTexture({ finish: conf.finish, color: conf.color }),
-      roughness: 0.95,
-      metalness: 0,
-    });
+    mat = createWallMaterial({ finish: conf.finish, color: conf.color });
     wallMatCache.set(key, mat);
   }
   return mat;
+}
+
+function disposeFloorMaterial(mat) {
+  if (!mat) return;
+  mat.map?.dispose();
+  mat.normalMap?.dispose();
+  mat.roughnessMap?.dispose();
+  mat.dispose();
 }
 
 function applyFloorMesh(mesh) {
   const roomId = mesh.userData.roomId;
   const conf = style[roomId].floor;
   const { w, d } = mesh.userData.floorSize;
-  if (mesh.material.map) mesh.material.map.dispose();
-  mesh.material.dispose();
-  mesh.material = new THREE.MeshStandardMaterial({
-    map: floorTexture(conf.kind, w, d, { color: conf.color, size: conf.size }),
-    roughness: conf.kind === 'wood' ? 0.52 : 0.38,
-    metalness: 0,
-  });
+  disposeFloorMaterial(mesh.material);
+  mesh.material = createFloorMaterial(conf.kind, w, d, { color: conf.color, size: conf.size });
 }
 
 function applyWallMesh(mesh) {

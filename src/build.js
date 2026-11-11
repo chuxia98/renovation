@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WALL_H, WALLS, FLOORS, BAYS, CEILING_LIGHTS, PX_PER_M, mx, mz } from './plan.js';
-import { floorTexture, wallTexture, WALL_TEX_METERS, skyTexture } from './textures.js';
+import { createFloorMaterial, createWallMaterial, WALL_TEX_METERS, skyTexture } from './textures.js';
 
 const LIGHT_BOOST = 0.32;
 const ROOM_PROBE = 0.45; // 墙面取样点距墙中心线的距离（米）
@@ -66,7 +66,7 @@ export function buildApartment(scene) {
 
   // ---------- 材质 ----------
 
-  const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture(), color: 0xffffff, roughness: 0.95, metalness: 0 });
+  const wallMat = createWallMaterial();
   const ceilMat = new THREE.MeshStandardMaterial({
     color: 0xe6e0d6, roughness: 0.96, emissive: 0xe8e0d2, emissiveIntensity: 0.32,
   });
@@ -112,11 +112,7 @@ export function buildApartment(scene) {
     const z2 = mz(f.z2);
     const w = x2 - x1;
     const d = z2 - z1;
-    const mat = new THREE.MeshStandardMaterial({
-      map: floorTexture(f.mat, w, d),
-      roughness: f.mat === 'wood' ? 0.52 : 0.38,
-      metalness: 0,
-    });
+    const mat = createFloorMaterial(f.mat, w, d);
     const mesh = box(w, 0.08, d, mat, (x1 + x2) / 2, -0.04, (z1 + z2) / 2, { cast: false });
     mesh.name = 'floor';
     mesh.userData.roomId = f.room;

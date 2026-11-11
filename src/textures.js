@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-const ANISO = 8;
+const ANISO = 16;
+// 法线/粗糙度贴图统一用 512，颜色贴图保持原分辨率
+const MAP_SIZE = 512;
 
 // 木地板贴图覆盖范围（米）
 const WOOD_TEX_METERS = 2;
@@ -35,11 +37,11 @@ function makeCanvas(size) {
   return c;
 }
 
-function toTexture(canvas, repeat = 1) {
+function toTexture(canvas, repeat = 1, srgb = true) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   tex.anisotropy = ANISO;
   tex.repeat.set(repeat, repeat);
   return tex;
@@ -138,10 +140,15 @@ function buildWood(color, plankWidth) {
   return c;
 }
 
+function floorCanvas(kind, conf) {
+  if (kind === 'tile') return cachedCanvas(cfgKey('tile', conf), () => buildTile(conf.color));
+  if (kind === 'stone') return cachedCanvas(cfgKey('stone', conf), () => buildStone(conf.color));
+  return cachedCanvas(cfgKey('wood', conf), () => buildWood(conf.color, conf.size));
+}
+
 export function woodFloorTexture(w, d, cfg = {}) {
   const conf = { ...FLOOR_DEFAULTS.wood, ...cfg };
-  const canvas = cachedCanvas(cfgKey('wood', conf), () => buildWood(conf.color, conf.size));
-  const tex = toTexture(canvas);
+  const tex = toTexture(floorCanvas('wood', conf));
   tex.repeat.set(w / WOOD_TEX_METERS, d / WOOD_TEX_METERS);
   return tex;
 }
@@ -192,8 +199,7 @@ function buildTile(color) {
 
 export function tileFloorTexture(w, d, cfg = {}) {
   const conf = { ...FLOOR_DEFAULTS.tile, ...cfg };
-  const canvas = cachedCanvas(cfgKey('tile', conf), () => buildTile(conf.color));
-  const tex = toTexture(canvas);
+  const tex = toTexture(floorCanvas('tile', conf));
   // 贴图里是 2×2 块，覆盖 2 × size 米
   const span = conf.size * 2;
   tex.repeat.set(w / span, d / span);
@@ -233,8 +239,7 @@ function buildStone(color) {
 
 export function stoneFloorTexture(w, d, cfg = {}) {
   const conf = { ...FLOOR_DEFAULTS.stone, ...cfg };
-  const canvas = cachedCanvas(cfgKey('stone', conf), () => buildStone(conf.color));
-  const tex = toTexture(canvas);
+  const tex = toTexture(floorCanvas('stone', conf));
   const span = conf.size * 2;
   tex.repeat.set(w / span, d / span);
   return tex;
@@ -358,13 +363,159 @@ const WALL_BUILDERS = {
   grid: buildGrid,
 };
 
+function wallCanvas(conf) {
+  const builder = WALL_BUILDERS[conf.finish] || buildPaint;
+  return cachedCanvas(`wall|${conf.finish}|${conf.color.toLowerCase()}`, () => builder(conf.color));
+}
+
 export function wallTexture(cfg = {}) {
   const conf = { ...WALL_DEFAULT, ...cfg };
-  const builder = WALL_BUILDERS[conf.finish] || buildPaint;
-  const canvas = cachedCanvas(`wall|${conf.finish}|${conf.color.toLowerCase()}`, () => builder(conf.color));
-  const tex = toTexture(canvas);
+  const tex = toTexture(wallCanvas(conf));
   tex.repeat.set(1, 1);
   return tex;
+}
+
+// ---------- PBR 派生：法线 / 粗糙度 ----------
+
+const reliefCache = new Map();
+
+function sampleLuminance(canvas, size) {
+  const src = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  const field = new Float32Array(size * size);
+  const stepX = canvas.width / size;
+  const stepY = canvas.height / size;
+  for (let y = 0; y < size; y++) {
+    const sy = Math.min(canvas.height - 1, Math.floor(y * stepY));
+    for (let x = 0; x < size; x++) {
+      const sx = Math.min(canvas.width - 1, Math.floor(x * stepX));
+      const i = (sy * canvas.width + sx) * 4;
+      field[y * size + x] = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114) / 255;
+    }
+  }
+  return field;
+}
+
+function blurField(field, size, passes) {
+  let src = field;
+  for (let p = 0; p < passes; p++) {
+    const out = new Float32Array(size * size);
+    for (let y = 0; y < size; y++) {
+      const up = ((y + size - 1) % size) * size;
+      const down = ((y + 1) % size) * size;
+      const row = y * size;
+      for (let x = 0; x < size; x++) {
+        const left = (x + size - 1) % size;
+        const right = (x + 1) % size;
+        out[row + x] = (src[up + left] + src[up + x] + src[up + right]
+          + src[row + left] + src[row + x] + src[row + right]
+          + src[down + left] + src[down + x] + src[down + right]) / 9;
+      }
+    }
+    src = out;
+  }
+  return src;
+}
+
+// 由颜色贴图的明度场派生法线（Sobel）与粗糙度（凹陷处更粗糙）
+function buildRelief(colorCanvas, { normalStrength, baseRough, roughRange, blur }) {
+  const size = MAP_SIZE;
+  const field = blurField(sampleLuminance(colorCanvas, size), size, blur);
+  let mean = 0;
+  for (let i = 0; i < field.length; i++) mean += field[i];
+  mean /= field.length;
+
+  const normalCanvas = makeCanvas(size);
+  const roughCanvas = makeCanvas(size);
+  const nctx = normalCanvas.getContext('2d');
+  const rctx = roughCanvas.getContext('2d');
+  const nimg = nctx.createImageData(size, size);
+  const rimg = rctx.createImageData(size, size);
+
+  for (let y = 0; y < size; y++) {
+    const up = ((y + size - 1) % size) * size;
+    const down = ((y + 1) % size) * size;
+    const row = y * size;
+    for (let x = 0; x < size; x++) {
+      const left = (x + size - 1) % size;
+      const right = (x + 1) % size;
+      const dx = (field[row + right] - field[row + left]) * normalStrength;
+      const dy = (field[down + x] - field[up + x]) * normalStrength;
+      const inv = 1 / Math.hypot(dx, dy, 1);
+      const i = (row + x) * 4;
+      nimg.data[i] = ((-dx * inv) * 0.5 + 0.5) * 255;
+      nimg.data[i + 1] = ((-dy * inv) * 0.5 + 0.5) * 255;
+      nimg.data[i + 2] = (inv * 0.5 + 0.5) * 255;
+      nimg.data[i + 3] = 255;
+      const r = clamp(baseRough + (mean - field[row + x]) * roughRange, 0.04, 1) * 255;
+      rimg.data[i] = r;
+      rimg.data[i + 1] = r;
+      rimg.data[i + 2] = r;
+      rimg.data[i + 3] = 255;
+    }
+  }
+  nctx.putImageData(nimg, 0, 0);
+  rctx.putImageData(rimg, 0, 0);
+  return { normal: normalCanvas, rough: roughCanvas };
+}
+
+function cachedRelief(key, build) {
+  let entry = reliefCache.get(key);
+  if (!entry) {
+    entry = build();
+    // 取色器可产生无限组合，缓存上限避免显存无限增长
+    if (reliefCache.size > 16) reliefCache.delete(reliefCache.keys().next().value);
+    reliefCache.set(key, entry);
+  }
+  return entry;
+}
+
+const FLOOR_SURFACE = {
+  wood: { normalStrength: 2.6, baseRough: 0.52, roughRange: 1.0, blur: 2, clearcoat: 0.06, clearcoatRoughness: 0.6, env: 0.3, normalScale: 0.7 },
+  tile: { normalStrength: 2.2, baseRough: 0.3, roughRange: 1.8, blur: 1, clearcoat: 0.18, clearcoatRoughness: 0.3, env: 0.4, normalScale: 0.8 },
+  stone: { normalStrength: 1.8, baseRough: 0.5, roughRange: 1.4, blur: 1, clearcoat: 0.04, clearcoatRoughness: 0.6, env: 0.3, normalScale: 0.7 },
+};
+
+export function createFloorMaterial(kind, w, d, cfg = {}) {
+  const conf = { ...FLOOR_DEFAULTS[kind], ...cfg };
+  const surf = FLOOR_SURFACE[kind] || FLOOR_SURFACE.wood;
+  const map = floorTexture(kind, w, d, conf);
+  const { normal, rough } = cachedRelief(
+    `floor|${kind}|${conf.color.toLowerCase()}|${Number(conf.size).toFixed(3)}`,
+    () => buildRelief(floorCanvas(kind, conf), surf),
+  );
+  const normalMap = toTexture(normal, 1, false);
+  normalMap.repeat.copy(map.repeat);
+  const roughnessMap = toTexture(rough, 1, false);
+  roughnessMap.repeat.copy(map.repeat);
+  return new THREE.MeshPhysicalMaterial({
+    map,
+    normalMap,
+    roughnessMap,
+    normalScale: new THREE.Vector2(surf.normalScale, surf.normalScale),
+    roughness: 1,
+    metalness: 0,
+    clearcoat: surf.clearcoat,
+    clearcoatRoughness: surf.clearcoatRoughness,
+    envMapIntensity: surf.env,
+  });
+}
+
+export function createWallMaterial(cfg = {}) {
+  const conf = { ...WALL_DEFAULT, ...cfg };
+  const map = wallTexture(conf);
+  const { normal, rough } = cachedRelief(
+    `wall|${conf.finish}|${conf.color.toLowerCase()}`,
+    () => buildRelief(wallCanvas(conf), { normalStrength: 1.1, baseRough: 0.93, roughRange: 0.35, blur: 2 }),
+  );
+  return new THREE.MeshStandardMaterial({
+    map,
+    normalMap: toTexture(normal, 1, false),
+    roughnessMap: toTexture(rough, 1, false),
+    normalScale: new THREE.Vector2(0.5, 0.5),
+    roughness: 1,
+    metalness: 0,
+    envMapIntensity: 0.15,
+  });
 }
 
 // ---------- 天空 ----------

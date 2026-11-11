@@ -5,35 +5,57 @@ import * as THREE from 'three';
 const std = (color, roughness = 0.8, metalness = 0) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness });
 
+const phys = (params) => new THREE.MeshPhysicalMaterial(params);
+
+const woodMat = (color, roughness) => phys({
+  color, roughness, metalness: 0,
+  clearcoat: 0.16, clearcoatRoughness: 0.45, envMapIntensity: 0.6,
+});
+
+const metalMat = (color, roughness, env = 1.2) => {
+  const mat = new THREE.MeshStandardMaterial({ color, roughness, metalness: 1 });
+  mat.envMapIntensity = env;
+  return mat;
+};
+
+const fabric = (color, roughness = 0.94) => phys({
+  color, roughness, metalness: 0,
+  sheen: 0.6, sheenRoughness: 0.85,
+  sheenColor: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45),
+  envMapIntensity: 0.4,
+});
+
 const MAT = {
-  walnut: std(0x6a4a34, 0.55),
-  oak: std(0xb08a62, 0.6),
-  paleWood: std(0xd3b48d, 0.62),
-  fabricGray: std(0x8e8b85, 0.95),
-  fabricBeige: std(0xb7a894, 0.95),
-  fabricDark: std(0x55564f, 0.95),
-  cream: std(0xe9e3d8, 0.85),
-  white: std(0xf2f1ed, 0.55),
-  ceramic: std(0xf4f3ef, 0.28),
+  walnut: woodMat(0x6a4a34, 0.55),
+  oak: woodMat(0xb08a62, 0.6),
+  paleWood: woodMat(0xd3b48d, 0.62),
+  fabricGray: fabric(0x8e8b85),
+  fabricBeige: fabric(0xb7a894),
+  fabricDark: fabric(0x55564f),
+  cream: phys({ color: 0xe9e3d8, roughness: 0.68, metalness: 0, clearcoat: 0.08, clearcoatRoughness: 0.5, envMapIntensity: 0.5 }),
+  white: phys({ color: 0xf2f1ed, roughness: 0.42, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 0.8 }),
+  ceramic: phys({ color: 0xf4f3ef, roughness: 0.2, metalness: 0, clearcoat: 0.7, clearcoatRoughness: 0.06, envMapIntensity: 1.1 }),
   black: std(0x1d1e20, 0.55),
-  metal: std(0x9298a0, 0.32, 0.85),
-  brass: std(0xb08d5a, 0.35, 0.8),
-  leaf: std(0x3f7a45, 0.85),
-  leafLight: std(0x5d9558, 0.85),
+  metal: metalMat(0x9298a0, 0.32),
+  brass: metalMat(0xb08d5a, 0.3),
+  leaf: std(0x3f7a45, 0.75),
+  leafLight: std(0x5d9558, 0.75),
   pot: std(0xa9a49c, 0.75),
   soil: std(0x3a2c21, 1),
-  rug: std(0xc9b79d, 1),
-  rugBorder: std(0x9d8567, 1),
-  duvet: std(0xe7dfd0, 0.95),
-  duvetAccent: std(0x9aa896, 0.95),
-  pillow: std(0xf5f2ea, 0.95),
-  screen: std(0x0b0f12, 0.22, 0.35),
-  mirror: std(0xc9d8de, 0.08, 0.9),
-  glass: new THREE.MeshPhysicalMaterial({
-    color: 0xd6e6ea, transparent: true, opacity: 0.24, roughness: 0.06,
-    metalness: 0, side: THREE.DoubleSide, depthWrite: false,
+  rug: fabric(0xc9b79d, 1),
+  rugBorder: fabric(0x9d8567, 1),
+  duvet: fabric(0xe7dfd0, 0.95),
+  duvetAccent: fabric(0x9aa896, 0.95),
+  pillow: fabric(0xf5f2ea, 0.95),
+  screen: phys({ color: 0x8b98a4, roughness: 0.07, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, vertexColors: true }),
+  bezel: phys({ color: 0x0e1013, roughness: 0.35, metalness: 0, clearcoat: 0.7, clearcoatRoughness: 0.2 }),
+  mirror: metalMat(0xc9d8de, 0.04, 1.6),
+  glass: phys({
+    color: 0xd6e6ea, transparent: true, opacity: 0.18, roughness: 0.04,
+    metalness: 0, ior: 1.5, envMapIntensity: 1.5,
+    side: THREE.DoubleSide, depthWrite: false,
   }),
-  stoneTop: std(0xe7e3d9, 0.32),
+  stoneTop: phys({ color: 0xe7e3d9, roughness: 0.24, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.12, envMapIntensity: 0.9 }),
 };
 
 const BOOK_COLORS = [0x7a4a3a, 0x3e5a6b, 0x7b6b45, 0x8c8c8c, 0x4f6350, 0x9c7f5f];
@@ -94,6 +116,26 @@ function coffeeTable() {
   return g;
 }
 
+function tvScreenGeometry() {
+  const geo = new THREE.PlaneGeometry(1.24, 0.67, 24, 12);
+  const uv = geo.attributes.uv;
+  const colors = new Float32Array(uv.count * 3);
+  for (let i = 0; i < uv.count; i++) {
+    const u = uv.getX(i);
+    const v = uv.getY(i);
+    // 斜向柔光带，模拟熄屏面板对室内光线的反射
+    const d = (u - 0.62) + (v - 0.72) * 0.55;
+    const streak = Math.exp(-(d * d) / (2 * 0.07 * 0.07));
+    const echo = Math.exp(-((d + 0.52) * (d + 0.52)) / (2 * 0.1 * 0.1));
+    const val = Math.min(1, 0.012 + streak * 0.72 + echo * 0.22 + v * 0.03);
+    colors[i * 3] = val * 0.92;
+    colors[i * 3 + 1] = val * 0.96;
+    colors[i * 3 + 2] = val;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geo;
+}
+
 function tvCabinet() {
   const g = new THREE.Group();
   part(g, B(1.8, 0.42, 0.4), MAT.walnut, 0, 0.24, 0);
@@ -105,8 +147,8 @@ function tvCabinet() {
   // 电视
   part(g, B(0.42, 0.02, 0.2), MAT.black, 0, 0.49, -0.02);
   part(g, B(0.07, 0.12, 0.05), MAT.black, 0, 0.55, -0.05);
-  part(g, B(1.32, 0.75, 0.045), MAT.black, 0, 0.99, 0.0);
-  part(g, B(1.24, 0.67, 0.01), MAT.screen, 0, 1.0, 0.028);
+  part(g, B(1.32, 0.75, 0.045), MAT.bezel, 0, 0.99, 0.0);
+  part(g, tvScreenGeometry(), MAT.screen, 0, 1.0, 0.0335);
   // 摆件
   part(g, CYL(0.05, 0.06, 0.18, 16), MAT.ceramic, -0.75, 0.57, 0);
   for (let i = 0; i < 3; i++) {
