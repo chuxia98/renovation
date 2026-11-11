@@ -830,13 +830,7 @@ body.touch * {
 }
 
 body.build #joystick {
-  bottom: calc(210px + env(safe-area-inset-bottom));
-}
-
-@media (max-height: 520px) {
-  body.build #joystick {
-    bottom: calc(170px + env(safe-area-inset-bottom));
-  }
+  display: none;
 }
 
 body.touch.build #toast {

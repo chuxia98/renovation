@@ -542,6 +542,8 @@ document.getElementById('btn-rotate').addEventListener('click', () => {
   updateGhost();
 });
 
+let resetJoystick = () => {};
+
 if (isTouch) {
   buildFab.classList.remove('hidden');
   buildFab.addEventListener('click', () => {
@@ -574,11 +576,14 @@ if (isTouch) {
   joystickEl.addEventListener('pointermove', (e) => {
     if (e.pointerId === joyId) moveJoystick(e);
   });
-  const endJoystick = (e) => {
-    if (e.pointerId !== joyId) return;
+  resetJoystick = () => {
     joyId = null;
     joystickKnob.style.transform = 'translate(0, 0)';
     controls.setTouchInput(0, 0);
+  };
+  const endJoystick = (e) => {
+    if (e.pointerId !== joyId) return;
+    resetJoystick();
   };
   joystickEl.addEventListener('pointerup', endJoystick);
   joystickEl.addEventListener('pointercancel', endJoystick);
@@ -671,8 +676,10 @@ function updateGhost() {
 
 function enterBuild() {
   buildMode = true;
-  controls.enabled = false;
+  controls.enabled = true;
+  controls.lookOnly = true;
   controls.unlock();
+  resetJoystick();
   body.classList.add('build');
   buildbar.classList.remove('hidden');
   modeEl.classList.add('build');
@@ -687,6 +694,7 @@ function enterBuild() {
 function exitBuild() {
   buildMode = false;
   controls.enabled = true;
+  controls.lookOnly = false;
   body.classList.remove('build');
   buildbar.classList.add('hidden');
   schemePanel.classList.add('hidden');
@@ -803,7 +811,9 @@ window.addEventListener('pointerup', (e) => {
       -(e.clientY / window.innerHeight) * 2 + 1,
     );
     updateGhost();
-    placeGhost();
+    if (!ghostType) toast(t('toast.pickItem'));
+    else if (!ghost || !ghost.visible) toast(t('toast.tapFloor'));
+    else placeGhost();
   } else if (!controls.locked && !isTouch) {
     controls.lock();
   }

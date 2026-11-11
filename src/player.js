@@ -19,6 +19,7 @@ export class PlayerControls {
     this.bob = 0;
     this.locked = false;
     this.enabled = true;
+    this.lookOnly = false;
     this.keys = new Set();
     this.onLockChange = null;
     this.onLockError = null;
@@ -131,7 +132,7 @@ export class PlayerControls {
 
     let forward = 0;
     let strafe = 0;
-    if (this.enabled) {
+    if (this.enabled && !this.lookOnly) {
       if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) forward += 1;
       if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) forward -= 1;
       if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) strafe += 1;
