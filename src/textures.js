@@ -10,8 +10,8 @@ const WOOD_TEX_METERS = 2;
 export const WALL_TEX_METERS = 1.5;
 
 export const FLOOR_DEFAULTS = {
-  wood: { color: '#9c6f47', size: 0.2 },
-  tile: { color: '#e2dfd8', w: 0.8, d: 0.8 },
+  wood: { color: '#b08a62', size: 0.2 },
+  tile: { color: '#dfd9ce', w: 0.8, d: 0.8 },
   stone: { color: '#a9a49b', w: 0.8, d: 0.8 },
 };
 
@@ -100,34 +100,34 @@ function buildWood(color, plankWidth) {
 
   for (let row = 0; row < rows; row++) {
     const y = row * rowH;
-    const tone = 0.9 + rnd() * 0.18;
+    const tone = 0.93 + rnd() * 0.12;
     g.fillStyle = shade(color, tone);
     g.fillRect(0, y, size, rowH);
 
-    // 木纹
-    const grains = Math.max(3, Math.round(rowH * 0.35));
+    // 木纹：浅橡木以细直纹为主，对比很轻
+    const grains = Math.max(3, Math.round(rowH * 0.24));
     for (let i = 0; i < grains; i++) {
       const gy = y + rnd() * rowH;
-      g.strokeStyle = rgba(shade(color, 0.5), 0.05 + rnd() * 0.08);
-      g.lineWidth = 0.6 + rnd() * 1.6;
+      g.strokeStyle = rgba(shade(color, 0.58), 0.035 + rnd() * 0.055);
+      g.lineWidth = 0.5 + rnd() * 1.2;
       g.beginPath();
       g.moveTo(0, gy);
       for (let x = 0; x <= size; x += 32) {
-        g.lineTo(x, gy + Math.sin((x / size) * Math.PI * (1 + rnd()) + row) * 1.8);
+        g.lineTo(x, gy + Math.sin((x / size) * Math.PI * (1 + rnd()) + row) * 1.4);
       }
       g.stroke();
     }
 
     // 板缝
-    g.fillStyle = rgba(shade(color, 0.35), 0.55);
-    g.fillRect(0, y, size, Math.max(2, rowH * 0.025));
+    g.fillStyle = rgba(shade(color, 0.5), 0.4);
+    g.fillRect(0, y, size, Math.max(1, rowH * 0.012));
 
     // 错缝端头
     const joints = 1 + Math.floor(rnd() * 2);
     for (let j = 0; j < joints; j++) {
       const x = Math.floor(rnd() * size);
-      g.fillStyle = rgba(shade(color, 0.35), 0.45);
-      g.fillRect(x, y + 2, Math.max(2, rowH * 0.025), rowH - 2);
+      g.fillStyle = rgba(shade(color, 0.5), 0.32);
+      g.fillRect(x, y + 1, Math.max(1, rowH * 0.012), rowH - 1);
     }
   }
 
@@ -175,7 +175,7 @@ function buildTile({ color, w, d }) {
   const g = c.getContext('2d');
   const rnd = rand(4421);
 
-  g.fillStyle = shade(color, 0.82);
+  g.fillStyle = shade(color, 0.86);
   g.fillRect(0, 0, cw, ch);
 
   for (let i = 0; i < 2; i++) {
@@ -184,7 +184,7 @@ function buildTile({ color, w, d }) {
       const y = j * cellH + grout / 2;
       const tw = cellW - grout;
       const th = cellH - grout;
-      const tone = 0.975 + rnd() * 0.05;
+      const tone = 0.978 + rnd() * 0.044;
       g.fillStyle = shade(color, tone);
       g.fillRect(x, y, tw, th);
 
@@ -195,17 +195,17 @@ function buildTile({ color, w, d }) {
 
       // 柔光釉面的斜向明暗
       const sheen = g.createLinearGradient(x, y, x + tw, y + th);
-      sheen.addColorStop(0, 'rgba(255,255,255,0.05)');
+      sheen.addColorStop(0, 'rgba(255,255,255,0.04)');
       sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
-      sheen.addColorStop(1, 'rgba(0,0,0,0.035)');
+      sheen.addColorStop(1, 'rgba(0,0,0,0.028)');
       g.fillStyle = sheen;
       g.fillRect(x, y, tw, th);
 
       // 大板砖的淡雅石纹
       const veins = 2 + Math.round(w * d * 3);
       for (let v = 0; v < veins; v++) {
-        g.strokeStyle = rgba(shade(color, rnd() > 0.5 ? 0.62 : 1.15), 0.04 + rnd() * 0.05);
-        g.lineWidth = 0.6 + rnd() * 1.8;
+        g.strokeStyle = rgba(shade(color, rnd() > 0.5 ? 0.66 : 1.12), 0.03 + rnd() * 0.04);
+        g.lineWidth = 0.5 + rnd() * 1.4;
         const sx = x + rnd() * tw;
         const sy = y + rnd() * th;
         g.beginPath();
@@ -221,13 +221,13 @@ function buildTile({ color, w, d }) {
       // 细颗粒
       const grains = Math.round(24 + w * d * 40);
       for (let k = 0; k < grains; k++) {
-        g.fillStyle = rgba(rnd() > 0.5 ? '#ffffff' : shade(color, 0.6), 0.08 + rnd() * 0.1);
-        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 1.6, 1 + rnd() * 1.6);
+        g.fillStyle = rgba(rnd() > 0.5 ? '#ffffff' : shade(color, 0.65), 0.06 + rnd() * 0.08);
+        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 1.4, 1 + rnd() * 1.4);
       }
       g.restore();
 
-      // 砖边倒角的一线高光
-      g.strokeStyle = rgba(shade(color, 0.72), 0.35);
+      // 砖边倒角的一线过渡
+      g.strokeStyle = rgba(shade(color, 0.76), 0.22);
       g.lineWidth = 1;
       g.strokeRect(x + 0.5, y + 0.5, tw - 1, th - 1);
     }
@@ -242,7 +242,7 @@ function buildStone({ color, w, d }) {
   const g = c.getContext('2d');
   const rnd = rand(771);
 
-  g.fillStyle = shade(color, 0.78);
+  g.fillStyle = shade(color, 0.84);
   g.fillRect(0, 0, cw, ch);
 
   for (let i = 0; i < 2; i++) {
@@ -251,7 +251,7 @@ function buildStone({ color, w, d }) {
       const y = j * cellH + grout / 2;
       const tw = cellW - grout;
       const th = cellH - grout;
-      const tone = 0.9 + rnd() * 0.16;
+      const tone = 0.94 + rnd() * 0.08;
       g.fillStyle = shade(color, tone);
       g.fillRect(x, y, tw, th);
 
@@ -259,10 +259,24 @@ function buildStone({ color, w, d }) {
       g.beginPath();
       g.rect(x, y, tw, th);
       g.clip();
+      // 哑光石材的云状纹理
+      for (let v = 0; v < 3; v++) {
+        const sx = x + rnd() * tw;
+        const sy = y + rnd() * th;
+        g.strokeStyle = rgba(shade(color, rnd() > 0.5 ? 0.78 : 1.1), 0.02 + rnd() * 0.025);
+        g.lineWidth = 12 + rnd() * 26;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.bezierCurveTo(
+          sx + (rnd() - 0.5) * tw * 0.9, sy + rnd() * th * 0.6,
+          sx + (rnd() - 0.5) * tw * 0.9, sy + th * 0.6, sx + (rnd() - 0.5) * tw, y + th,
+        );
+        g.stroke();
+      }
       const grains = Math.round(40 + w * d * 90);
       for (let k = 0; k < grains; k++) {
-        g.fillStyle = rgba(rnd() > 0.45 ? shade(color, 0.6) : shade(color, 1.25), 0.1 + rnd() * 0.16);
-        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 3, 1 + rnd() * 2);
+        g.fillStyle = rgba(rnd() > 0.45 ? shade(color, 0.68) : shade(color, 1.18), 0.07 + rnd() * 0.1);
+        g.fillRect(x + rnd() * tw, y + rnd() * th, 1 + rnd() * 2.4, 1 + rnd() * 1.6);
       }
       g.restore();
     }
@@ -306,10 +320,11 @@ function buildPaint(color) {
   g.fillStyle = color;
   g.fillRect(0, 0, WALL_SIZE, WALL_SIZE);
 
-  g.globalAlpha = 0.05;
-  for (let i = 0; i < 2600; i++) {
-    g.fillStyle = rnd() > 0.5 ? '#ffffff' : shade(color, 0.7);
-    g.fillRect(rnd() * WALL_SIZE, rnd() * WALL_SIZE, 1.4, 1.4);
+  // 哑光乳胶漆：只有极轻的滚涂颗粒
+  g.globalAlpha = 0.035;
+  for (let i = 0; i < 1800; i++) {
+    g.fillStyle = rnd() > 0.5 ? '#ffffff' : shade(color, 0.75);
+    g.fillRect(rnd() * WALL_SIZE, rnd() * WALL_SIZE, 1.2, 1.2);
   }
   g.globalAlpha = 1;
 
@@ -512,10 +527,11 @@ function cachedRelief(key, build) {
   return entry;
 }
 
+// 暖现代风格以哑光、柔光为主，避免高亮镜面反射
 const FLOOR_SURFACE = {
-  wood: { normalStrength: 2.6, baseRough: 0.52, roughRange: 1.0, blur: 2, clearcoat: 0.06, clearcoatRoughness: 0.6, env: 0.3, normalScale: 0.7 },
-  tile: { normalStrength: 2.2, baseRough: 0.3, roughRange: 1.8, blur: 1, clearcoat: 0.18, clearcoatRoughness: 0.3, env: 0.4, normalScale: 0.8 },
-  stone: { normalStrength: 1.8, baseRough: 0.5, roughRange: 1.4, blur: 1, clearcoat: 0.04, clearcoatRoughness: 0.6, env: 0.3, normalScale: 0.7 },
+  wood: { normalStrength: 2.0, baseRough: 0.56, roughRange: 0.8, blur: 2, clearcoat: 0.04, clearcoatRoughness: 0.72, env: 0.25, normalScale: 0.55 },
+  tile: { normalStrength: 1.6, baseRough: 0.34, roughRange: 1.2, blur: 1, clearcoat: 0.1, clearcoatRoughness: 0.45, env: 0.3, normalScale: 0.6 },
+  stone: { normalStrength: 1.4, baseRough: 0.58, roughRange: 1.0, blur: 1, clearcoat: 0.02, clearcoatRoughness: 0.8, env: 0.25, normalScale: 0.55 },
 };
 
 export function createFloorMaterial(kind, w, d, cfg = {}) {
@@ -548,13 +564,13 @@ export function createWallMaterial(cfg = {}) {
   const map = wallTexture(conf);
   const { normal, rough } = cachedRelief(
     `wall|${conf.finish}|${conf.color.toLowerCase()}`,
-    () => buildRelief(wallCanvas(conf), { normalStrength: 1.1, baseRough: 0.93, roughRange: 0.35, blur: 2 }),
+    () => buildRelief(wallCanvas(conf), { normalStrength: 0.9, baseRough: 0.9, roughRange: 0.25, blur: 2 }),
   );
   return new THREE.MeshStandardMaterial({
     map,
     normalMap: toTexture(normal, 1, false),
     roughnessMap: toTexture(rough, 1, false),
-    normalScale: new THREE.Vector2(0.5, 0.5),
+    normalScale: new THREE.Vector2(0.35, 0.35),
     roughness: 1,
     metalness: 0,
     envMapIntensity: 0.15,

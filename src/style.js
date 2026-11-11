@@ -32,8 +32,8 @@ const ROOM_FLOOR_SIZES = {
 };
 
 export const FLOOR_SWATCHES = {
-  wood: ['#9c6f47', '#b08a62', '#6a4a34', '#d3b48d', '#8c8880', '#4f3a2a'],
-  tile: ['#e2dfd8', '#c8c4bd', '#d9cdb9', '#8f8d88', '#6f6d68', '#b06a4f', '#7c8c78'],
+  wood: ['#b08a62', '#c2a37d', '#6a4a34', '#d3b48d', '#8c8880', '#4f3a2a'],
+  tile: ['#dfd9ce', '#c8c4bd', '#d9cdb9', '#8f8d88', '#6f6d68', '#b06a4f', '#7c8c78'],
   stone: ['#a9a49b', '#8f8a82', '#c2bdb4', '#6f6a62'],
 };
 

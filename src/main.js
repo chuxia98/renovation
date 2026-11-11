@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildApartment } from './build.js';
 import { PlayerControls } from './player.js';
-import { CATALOG, catalogItem, createFurniture, applyGhostMaterial } from './furniture.js';
+import {
+  CATALOG, catalogItem, catalogVariants, furnitureVariant, createFurniture, applyGhostMaterial,
+} from './furniture.js';
 import { START, FLOORS, ROOMS, mx, mz } from './plan.js';
 import { createMinimap, createRadar } from './minimap.js';
 import { t, getLang, setLang, applyStatic, initLang, onLangChange } from './i18n.js';
@@ -88,13 +90,14 @@ function obbHit(ax, az, arot, aw, ad, bx, bz, brot, bw, bd) {
   return true;
 }
 
-function checkPlacement(type, x, z, rot) {
+function checkPlacement(type, x, z, rot, variantId) {
   const item = catalogItem(type);
+  const variant = furnitureVariant(type, variantId);
   const r = THREE.MathUtils.degToRad(rot);
   const c = Math.cos(r);
   const s = Math.sin(r);
-  const hw = item.w / 2;
-  const hd = item.d / 2;
+  const hw = variant.w / 2;
+  const hd = variant.d / 2;
   const local = [
     [0, 0],
     [-hw, -hd], [hw, -hd], [-hw, hd], [hw, hd],
@@ -110,19 +113,20 @@ function checkPlacement(type, x, z, rot) {
     for (const p of placements) {
       const other = catalogItem(p.t);
       if (other.flat) continue;
-      if (obbHit(x, z, rot, item.w, item.d, p.x, p.z, p.r, other.w, other.d)) return false;
+      const otherVariant = furnitureVariant(p.t, p.v);
+      if (obbHit(x, z, rot, variant.w, variant.d, p.x, p.z, p.r, otherVariant.w, otherVariant.d)) return false;
     }
   }
   return true;
 }
 
-function addFurniture(type, x, z, rot, save = true) {
-  const group = createFurniture(type);
+function addFurniture(type, x, z, rot, save = true, variantId) {
+  const group = createFurniture(type, variantId);
   if (!group) return null;
   group.position.set(x, 0, z);
   group.rotation.y = THREE.MathUtils.degToRad(rot);
   furnitureGroup.add(group);
-  const entry = { t: type, x, z, r: rot, group };
+  const entry = { t: type, v: group.userData.variant, x, z, r: rot, group };
   placements.push(entry);
   if (save) saveLayout();
   return group;
@@ -130,7 +134,7 @@ function addFurniture(type, x, z, rot, save = true) {
 
 function snapshot() {
   return placements.map((p) => ({
-    t: p.t, x: +p.x.toFixed(3), z: +p.z.toFixed(3), r: Math.round(p.r),
+    t: p.t, v: p.v, x: +p.x.toFixed(3), z: +p.z.toFixed(3), r: Math.round(p.r),
   }));
 }
 
@@ -147,7 +151,7 @@ function applyLayout(data) {
   placements.length = 0;
   for (const p of data) {
     if (!catalogItem(p.t)) continue;
-    addFurniture(p.t, p.x, p.z, p.r, false);
+    addFurniture(p.t, p.x, p.z, p.r, false, p.v);
   }
 }
 
@@ -179,6 +183,10 @@ if (isTouch) body.classList.add('touch');
 const overlay = document.getElementById('overlay');
 const buildbar = document.getElementById('buildbar');
 const catalogEl = document.getElementById('catalog');
+const variantBarEl = document.getElementById('variant-bar');
+const variantTitleEl = document.getElementById('variant-title');
+const variantOptionsEl = document.getElementById('variant-options');
+const variantDoneEl = document.getElementById('variant-done');
 const modeEl = document.getElementById('mode');
 const statsEl = document.getElementById('stats');
 const toastEl = document.getElementById('toast');
@@ -637,6 +645,7 @@ function renderLocalizedUI() {
   for (const opt of styleRoomEl.options) opt.textContent = t(`room.${opt.value}`);
   renderSchemes();
   renderStyleControls();
+  renderVariantBar();
   updateModeLabel();
 }
 
@@ -647,8 +656,10 @@ onLangChange(renderLocalizedUI);
 let buildMode = false;
 let ghost = null;
 let ghostType = null;
+let ghostVariant = null;
 let ghostRot = 0;
 let ghostValid = false;
+let editing = null;
 const pointer = new THREE.Vector2(0, -0.35);
 const raycaster = new THREE.Raycaster();
 const INTERACT_REACH = 2.6;
@@ -668,15 +679,105 @@ function toggleInteractive(ndcX, ndcY) {
 }
 
 function selectType(id) {
+  editing = null;
   ghostType = id;
+  ghostVariant = null;
   ghostRot = 0;
   setActiveCatalog(id);
   rebuildGhost();
+  renderVariantBar();
   updateGhost();
 }
 
 function setActiveCatalog(id) {
   for (const btn of catalogEl.children) btn.classList.toggle('active', btn.dataset.id === id);
+}
+
+function activeGhostVariant(item) {
+  const variants = catalogVariants(item);
+  return variants.find((v) => v.id === ghostVariant)?.id ?? variants[0].id;
+}
+
+function renderVariantBar() {
+  const target = editing ? editing.t : ghostType;
+  const item = target ? catalogItem(target) : null;
+  const variants = item ? catalogVariants(item) : [];
+  if (variants.length < 2) {
+    variantBarEl.classList.add('hidden');
+    return;
+  }
+  const active = editing ? editing.v : activeGhostVariant(item);
+  variantBarEl.classList.remove('hidden');
+  variantTitleEl.textContent = `${itemName(item.id)} · ${t('build.variantTitle')}`;
+  variantOptionsEl.textContent = '';
+  for (const v of variants) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'variant-item';
+    btn.classList.toggle('active', v.id === active);
+    btn.textContent = t(`variant.${item.id}.${v.id}`);
+    btn.addEventListener('click', () => chooseVariant(v.id));
+    variantOptionsEl.appendChild(btn);
+  }
+  variantDoneEl.classList.toggle('hidden', !editing);
+}
+
+function chooseVariant(variantId) {
+  const target = editing ? editing.t : ghostType;
+  if (!target) return;
+  const variant = furnitureVariant(target, variantId);
+  if (!variant) return;
+  if (editing) {
+    const group = createFurniture(editing.t, variant.id);
+    group.position.copy(editing.group.position);
+    group.rotation.copy(editing.group.rotation);
+    furnitureGroup.remove(editing.group);
+    furnitureGroup.add(group);
+    editing.group = group;
+    editing.v = variant.id;
+    saveLayout();
+    renderVariantBar();
+    return;
+  }
+  ghostVariant = variant.id;
+  rebuildGhost();
+  renderVariantBar();
+  updateGhost();
+}
+
+function openVariantEditor(entry) {
+  const item = catalogItem(entry.t);
+  if (!item || catalogVariants(item).length < 2) return false;
+  editing = entry;
+  setActiveCatalog(entry.t);
+  if (ghost) ghost.visible = false;
+  renderVariantBar();
+  return true;
+}
+
+function finishEditing() {
+  if (!editing) return;
+  ghostType = editing.t;
+  ghostVariant = editing.v;
+  ghostRot = Math.round(editing.r);
+  editing = null;
+  setActiveCatalog(ghostType);
+  rebuildGhost();
+  renderVariantBar();
+  updateGhost();
+}
+
+function placementUnderPointer(clientX, clientY) {
+  const ndc = new THREE.Vector2(
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1,
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(furnitureGroup.children, true);
+  if (!hits.length) return null;
+  let obj = hits[0].object;
+  while (obj.parent && obj.parent !== furnitureGroup) obj = obj.parent;
+  return placements.find((p) => p.group === obj) ?? null;
 }
 
 function rebuildGhost() {
@@ -685,7 +786,7 @@ function rebuildGhost() {
     ghost = null;
   }
   if (!ghostType) return;
-  ghost = createFurniture(ghostType);
+  ghost = createFurniture(ghostType, ghostVariant);
   ghost.position.y = 0.005;
   applyGhostMaterial(ghost, true);
   scene.add(ghost);
@@ -693,7 +794,7 @@ function rebuildGhost() {
 }
 
 function updateGhost() {
-  if (!buildMode || !ghost) return;
+  if (!buildMode || !ghost || editing) return;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(floorMeshes, false);
   if (!hits.length) {
@@ -708,7 +809,7 @@ function updateGhost() {
   ghost.position.set(x, 0.005, z);
   ghost.rotation.y = THREE.MathUtils.degToRad(ghostRot);
 
-  const valid = checkPlacement(ghostType, x, z, ghostRot);
+  const valid = checkPlacement(ghostType, x, z, ghostRot, ghostVariant);
   if (valid !== ghostValid) {
     ghostValid = valid;
     applyGhostMaterial(ghost, valid);
@@ -725,6 +826,7 @@ function enterBuild() {
   buildbar.classList.remove('hidden');
   modeEl.classList.add('build');
   updateModeLabel();
+  renderVariantBar();
   if (ghostType) {
     if (!ghost) rebuildGhost();
     pointer.set(0, -0.35);
@@ -734,6 +836,7 @@ function enterBuild() {
 
 function exitBuild() {
   buildMode = false;
+  editing = null;
   controls.enabled = true;
   controls.lookOnly = false;
   body.classList.remove('build');
@@ -742,6 +845,7 @@ function exitBuild() {
   stylePanel.classList.add('hidden');
   modeEl.classList.remove('build');
   updateModeLabel();
+  renderVariantBar();
   if (ghost) {
     scene.remove(ghost);
     ghost = null;
@@ -762,7 +866,7 @@ function placeGhost() {
   const x = +ghost.position.x.toFixed(3);
   const z = +ghost.position.z.toFixed(3);
   const r = Math.round(ghostRot);
-  addFurniture(ghostType, x, z, r);
+  addFurniture(ghostType, x, z, r, true, ghostVariant);
   toast(t('toast.placed', { name: itemName(ghostType), n: placements.length }));
   updateGhost();
   // 触屏没有悬停指针，放置后隐藏预览，避免盖住刚放下的家具
@@ -783,6 +887,10 @@ function removeUnderPointer(clientX, clientY) {
   if (idx < 0) return;
   const [removed] = placements.splice(idx, 1);
   furnitureGroup.remove(removed.group);
+  if (editing === removed) {
+    editing = null;
+    renderVariantBar();
+  }
   saveLayout();
   toast(t('toast.removed', { name: itemName(removed.t) }));
 }
@@ -805,6 +913,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 });
 
 document.getElementById('btn-exit').addEventListener('click', exitBuild);
+variantDoneEl.addEventListener('click', finishEditing);
 
 controls.onLockChange = (locked) => {
   body.classList.toggle('locked', locked);
@@ -847,6 +956,12 @@ window.addEventListener('pointerup', (e) => {
   cancelPress();
   if (tap.moved || pressHandled || performance.now() - tap.at > 500) return;
   if (buildMode) {
+    const hit = placementUnderPointer(e.clientX, e.clientY);
+    if (hit && openVariantEditor(hit)) return;
+    if (editing) {
+      finishEditing();
+      return;
+    }
     pointer.set(
       (e.clientX / window.innerWidth) * 2 - 1,
       -(e.clientY / window.innerHeight) * 2 + 1,
@@ -886,7 +1001,8 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'Escape') {
-    if (buildMode) exitBuild();
+    if (editing) finishEditing();
+    else if (buildMode) exitBuild();
     return;
   }
   if (!buildMode) return;
@@ -898,6 +1014,10 @@ window.addEventListener('keydown', (e) => {
     const last = placements.pop();
     if (last) {
       furnitureGroup.remove(last.group);
+      if (editing === last) {
+        editing = null;
+        renderVariantBar();
+      }
       saveLayout();
       toast(t('toast.removed', { name: itemName(last.t) }));
     }

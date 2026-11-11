@@ -68,21 +68,25 @@ export function buildApartment(scene) {
   // ---------- 材质 ----------
 
   const wallMat = createWallMaterial();
+  // 暖白哑光顶面，靠轻微自发光补足室内漫反射
   const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0xe6e0d6, roughness: 0.96, emissive: 0xe8e0d2, emissiveIntensity: 0.32,
+    color: 0xefe9df, roughness: 0.97, emissive: 0xeee6d9, emissiveIntensity: 0.28,
   });
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x43484c, roughness: 0.42, metalness: 0.55 });
-  const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d7, roughness: 0.62 });
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0xf0ebe2, roughness: 0.55 });
-  const entryDoorMat = new THREE.MeshStandardMaterial({ color: 0x473327, roughness: 0.48 });
-  const doorPanelMat = new THREE.MeshStandardMaterial({ color: 0xe2dbcf, roughness: 0.64 });
+  // 哑光枪灰窗框
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x353836, roughness: 0.5, metalness: 0.7 });
+  // 奶油色肤感门套与门板
+  const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xe9e3d8, roughness: 0.7 });
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0xefe9df, roughness: 0.64 });
+  const entryDoorMat = new THREE.MeshStandardMaterial({ color: 0x4a382c, roughness: 0.55 });
+  const doorPanelMat = new THREE.MeshStandardMaterial({ color: 0xe3dcd0, roughness: 0.68 });
   const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0xc4dce4, transparent: true, opacity: 0.17, roughness: 0.05, metalness: 0,
-    side: THREE.DoubleSide, depthWrite: false,
+    color: 0xdbe8e8, transparent: true, opacity: 0.12, roughness: 0.03, metalness: 0,
+    ior: 1.52, side: THREE.DoubleSide, depthWrite: false,
   });
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x8b9094, roughness: 0.33, metalness: 0.82 });
+  // 拉丝枪灰五金
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x777b7b, roughness: 0.4, metalness: 0.88 });
   const lampMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2622, emissive: 0xffe4b8, emissiveIntensity: 2.6, roughness: 0.4,
+    color: 0x2a2622, emissive: 0xffdfae, emissiveIntensity: 2.2, roughness: 0.5,
   });
 
   // ---------- 工具 ----------
@@ -277,10 +281,10 @@ export function buildApartment(scene) {
     group.add(leaf);
 
     if (op.style === 'entry') {
-      const upper = new THREE.Mesh(new THREE.BoxGeometry(leafW * 0.64, (top - 0.08) * 0.34, 0.012), new THREE.MeshStandardMaterial({ color: 0x35241a, roughness: 0.5 }));
+      const upper = new THREE.Mesh(new THREE.BoxGeometry(leafW * 0.64, (top - 0.08) * 0.34, 0.012), new THREE.MeshStandardMaterial({ color: 0x3a2b21, roughness: 0.56 }));
       upper.position.set(0.03 + leafW / 2, (top - 0.08) * 0.68, 0.029);
       group.add(upper);
-      const lower = new THREE.Mesh(new THREE.BoxGeometry(leafW * 0.64, (top - 0.08) * 0.36, 0.012), new THREE.MeshStandardMaterial({ color: 0x35241a, roughness: 0.5 }));
+      const lower = new THREE.Mesh(new THREE.BoxGeometry(leafW * 0.64, (top - 0.08) * 0.36, 0.012), new THREE.MeshStandardMaterial({ color: 0x3a2b21, roughness: 0.56 }));
       lower.position.set(0.03 + leafW / 2, (top - 0.08) * 0.29, 0.029);
       group.add(lower);
     } else {
@@ -290,7 +294,7 @@ export function buildApartment(scene) {
     }
 
     // 把手（两侧）
-    const metalDark = new THREE.MeshStandardMaterial({ color: 0x9a9187, roughness: 0.32, metalness: 0.85 });
+    const metalDark = new THREE.MeshStandardMaterial({ color: 0x8f8c86, roughness: 0.42, metalness: 0.85 });
     for (const side of [1, -1]) {
       const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.13, 12), metalDark);
       handle.rotation.x = Math.PI / 2;

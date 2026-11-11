@@ -494,6 +494,88 @@ body.build #crosshair {
   color: var(--accent);
 }
 
+/* ---------- Variant bar ---------- */
+
+#variant-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#variant-title {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+#variant-options {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+#variant-options::-webkit-scrollbar {
+  height: 4px;
+}
+
+#variant-options::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.variant-item {
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.variant-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+.variant-item.active {
+  border-color: rgba(224, 169, 109, 0.65);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+#variant-done {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #241c13;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+#variant-done:hover {
+  filter: brightness(1.08);
+}
+
 /* ---------- Scheme panel ---------- */
 
 #scheme-panel {
