@@ -101,6 +101,17 @@ export function applyFurnitureTextures() {
   assign(MAT.stoneTop, marble, 0.35, 0.8);
 }
 
+const GLOSSY_MATS = ['metal', 'brass', 'mirror', 'glass', 'stoneTop', 'screen', 'bezel'];
+
+// 高反射材质单独挂 HDRI，保留玻璃/金属反射；传 null 时清除
+export function applyGlossyEnv(envTexture) {
+  for (const key of GLOSSY_MATS) {
+    const mat = MAT[key];
+    mat.envMap = envTexture;
+    mat.needsUpdate = true;
+  }
+}
+
 function part(parent, geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y, z);

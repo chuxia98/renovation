@@ -4,7 +4,7 @@ import { buildApartment } from './build.js';
 import { PlayerControls } from './player.js';
 import {
   CATALOG, catalogItem, catalogVariants, furnitureVariant, createFurniture, applyGhostMaterial,
-  applyFurnitureTextures,
+  applyFurnitureTextures, applyGlossyEnv,
 } from './furniture.js';
 import { START, FLOORS, ROOMS, mx, mz } from './plan.js';
 import { createMinimap, createRadar } from './minimap.js';
@@ -45,7 +45,8 @@ const hdri = await new RGBELoader().loadAsync(
 );
 const envTexture = pmrem.fromEquirectangular(hdri).texture;
 scene.environment = envTexture;
-scene.environmentIntensity = 0.5;
+// 全局环境光只留弱补光，窗边亮度交给窗洞面光，避免整屋均匀发亮
+scene.environmentIntensity = 0.2;
 pmrem.dispose();
 
 hdri.mapping = THREE.EquirectangularReflectionMapping;
@@ -54,7 +55,11 @@ setSkyTexture(hdri);
 await loadPbr();
 applyFurnitureTextures();
 
-const { colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions } = buildApartment(scene);
+const {
+  colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions,
+  glossyMaterials, daylightLights,
+} = buildApartment(scene, envTexture);
+applyGlossyEnv(envTexture);
 bindApartment({ floorMeshes, wallMeshes, balcony });
 const interactionRoots = interactions.flatMap((it) => it.roots);
 
@@ -572,8 +577,14 @@ const ENV_KEY = 'hourse-env-v1';
 const envToggle = document.getElementById('env-toggle');
 
 function applyEnvLight(on) {
-  // 关掉环境光只影响室内补光与反射，窗外天空保持不变
+  // 关掉环境光只影响天空补光与反射，窗外天空保持不变
   scene.environment = on ? envTexture : null;
+  for (const light of daylightLights) light.visible = on;
+  for (const mat of glossyMaterials) {
+    mat.envMap = on ? envTexture : null;
+    mat.needsUpdate = true;
+  }
+  applyGlossyEnv(on ? envTexture : null);
 }
 
 envToggle.checked = localStorage.getItem(ENV_KEY) !== 'off';

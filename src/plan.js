@@ -11,13 +11,14 @@ export const mz = (py) => (py - ORIGIN_PX.y) / PX_PER_M;
 // o: 'v' 沿 Z 走向（图纸竖墙）；'h' 沿 X 走向（图纸横墙）
 // at: 墙中心线（v 为 x 像素，h 为 y 像素）；from/to: 墙沿轴起止像素；t: 厚度像素
 // openings: from/to 沿轴像素；sill/top 米；kind: window | door | slider
+// light: 窗洞天光面光的朝向（v 墙为 x 方向，h 墙为 z 方向），没有则该洞不进光
 export const WALLS = [
   {
     // 西外墙：主卧 + 次卧，两处 TC1517 飘窗
     o: 'v', at: 368, from: 795, to: 1853, t: 36,
     openings: [
-      { from: 922, to: 1188, sill: 0.5, top: 2.2, kind: 'window', bay: true },
-      { from: 1442, to: 1708, sill: 0.5, top: 2.2, kind: 'window', bay: true },
+      { from: 922, to: 1188, sill: 0.5, top: 2.2, kind: 'window', bay: true, light: 1 },
+      { from: 1442, to: 1708, sill: 0.5, top: 2.2, kind: 'window', bay: true, light: 1 },
     ],
   },
   {
@@ -37,7 +38,7 @@ export const WALLS = [
     // 厨房西墙（上段）/ 卫生间东墙：北端 C0914 窗
     o: 'v', at: 1300, from: 464, to: 1315, t: 38,
     openings: [
-      { from: 567, to: 728, sill: 0.9, top: 2.3, kind: 'window' },
+      { from: 567, to: 728, sill: 0.9, top: 2.3, kind: 'window', light: 1 },
     ],
   },
   {
@@ -71,7 +72,7 @@ export const WALLS = [
     // 北外墙：主卧北墙 + 卫生间北墙（C0914 高窗）
     o: 'h', at: 813, from: 350, to: 1318, t: 38,
     openings: [
-      { from: 996, to: 1209, sill: 1.1, top: 2.5, kind: 'window' },
+      { from: 996, to: 1209, sill: 1.1, top: 2.5, kind: 'window', light: 1 },
     ],
   },
   {
@@ -114,14 +115,14 @@ export const WALLS = [
     // 客厅南墙 / 阳台推拉门 TLM2423
     o: 'h', at: 2139, from: 1281, to: 2052, t: 37,
     openings: [
-      { from: 1461, to: 1890, sill: 0, top: 2.3, kind: 'slider' },
+      { from: 1461, to: 1890, sill: 0, top: 2.3, kind: 'slider', light: -1 },
     ],
   },
   {
     // 多功能房南外墙 / FCZ1817 飘窗
     o: 'h', at: 2461, from: 601, to: 1318, t: 38,
     openings: [
-      { from: 799, to: 1119, sill: 0.5, top: 2.2, kind: 'window', bay: true },
+      { from: 799, to: 1119, sill: 0.5, top: 2.2, kind: 'window', bay: true, light: -1 },
     ],
   },
 ];

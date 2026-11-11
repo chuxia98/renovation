@@ -1,11 +1,18 @@
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { WALL_H, WALLS, FLOORS, BAYS, CEILING_LIGHTS, PX_PER_M, mx, mz } from './plan.js';
 import { createFloorMaterial, createWallMaterial, WALL_TEX_METERS, skyTexture } from './textures.js';
+
+RectAreaLightUniformsLib.init();
 
 const LIGHT_BOOST = 0.2;
 const ROOM_PROBE = 0.45; // 墙面取样点距墙中心线的距离（米）
 
-export function buildApartment(scene) {
+// 窗洞天光：冷色面光贴窗朝内，只补充窗口附近的漫射光；方向性亮斑仍由太阳阴影负责
+const DAYLIGHT_COLOR = 0xe4edf9;
+const DAYLIGHT_POWER = 2.4;
+
+export function buildApartment(scene, envTexture) {
   const root = new THREE.Group();
   root.name = 'apartment';
   scene.add(root);
@@ -14,6 +21,7 @@ export function buildApartment(scene) {
   const floorMeshes = [];
   const wallMeshes = [];
   const interactions = [];
+  const daylightLights = [];
 
   // 房间矩形（米），用于判断墙体两侧归属
   const roomRects = FLOORS.map((f) => ({
@@ -88,6 +96,13 @@ export function buildApartment(scene) {
   const lampMat = new THREE.MeshStandardMaterial({
     color: 0x2a2622, emissive: 0xffdfae, emissiveIntensity: 2.2, roughness: 0.5,
   });
+
+  // 玻璃/五金保留完整 HDRI 反射，不随室内环境光一起压暗
+  const glossyMaterials = [glassMat, frameMat, metalMat];
+  glassMat.envMapIntensity = 1.2;
+  if (envTexture) {
+    for (const mat of glossyMaterials) mat.envMap = envTexture;
+  }
 
   // ---------- 工具 ----------
 
@@ -540,6 +555,13 @@ export function buildApartment(scene) {
     addFrontGlazing(balconySolid, x0, x1, southZ, parapetH, top, true);
     addFrontGlazing(balconyGlass, x0, x1, southZ, 0.08, top, false);
 
+    // 阳台正面整幅玻璃的入室天光
+    addDaylightLight(
+      (x0 + x1) / 2, 2.2, southZ - 0.09,
+      (x0 + x1) / 2, southZ - 1.2,
+      x1 - x0, 1.2,
+    );
+
     // 北侧与客厅东外墙之间的缺口，补实墙
     const nx0 = mx(2052);
     const notch = box(x1 - nx0, WALL_H, eastT, wallMat, (nx0 + x1) / 2, WALL_H / 2, z0);
@@ -586,6 +608,33 @@ export function buildApartment(scene) {
   sun.shadow.normalBias = 0.025;
   scene.add(sun);
   scene.add(sun.target);
+
+  // ---------- 窗洞天光 ----------
+
+  function addDaylightLight(x, y, z, lookX, lookZ, width, height) {
+    const light = new THREE.RectAreaLight(DAYLIGHT_COLOR, DAYLIGHT_POWER, width, height);
+    light.position.set(x, y, z);
+    light.lookAt(lookX, y, lookZ);
+    scene.add(light);
+    daylightLights.push(light);
+  }
+
+  for (const w of WALLS) {
+    const c = w.o === 'v' ? mx(w.at) : mz(w.at);
+    for (const op of w.openings) {
+      if (!op.light) continue;
+      const a0 = w.o === 'v' ? mz(op.from) : mx(op.from);
+      const a1 = w.o === 'v' ? mz(op.to) : mx(op.to);
+      const mid = (a0 + a1) / 2;
+      const yMid = (op.sill + op.top) / 2;
+      // 离墙 9cm 放进室内，避免面光与窗框重叠
+      if (w.o === 'v') {
+        addDaylightLight(c + op.light * 0.09, yMid, mid, c + op.light * 1.2, mid, a1 - a0, op.top - op.sill);
+      } else {
+        addDaylightLight(mid, yMid, c + op.light * 0.09, mid, c + op.light * 1.2, a1 - a0, op.top - op.sill);
+      }
+    }
+  }
 
   for (const l of CEILING_LIGHTS) {
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 28), lampMat);
@@ -688,5 +737,8 @@ export function buildApartment(scene) {
     scene.add(b);
   }
 
-  return { root, colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions };
+  return {
+    root, colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions,
+    glossyMaterials, daylightLights,
+  };
 }
