@@ -15,6 +15,7 @@ import {
 } from './style.js';
 import { FLOOR_DEFAULTS, setSkyTexture } from './textures.js';
 import { loadPbr } from './pbr.js';
+import { loadModels, applyModelEnv } from './models.js';
 
 const STORE_KEY = 'hourse-layout-v1';
 const SCHEMES_KEY = 'hourse-layout-schemes-v1';
@@ -52,7 +53,7 @@ pmrem.dispose();
 hdri.mapping = THREE.EquirectangularReflectionMapping;
 setSkyTexture(hdri);
 
-await loadPbr();
+await Promise.all([loadPbr(), loadModels()]);
 applyFurnitureTextures();
 
 const {
@@ -585,6 +586,7 @@ function applyEnvLight(on) {
     mat.needsUpdate = true;
   }
   applyGlossyEnv(on ? envTexture : null);
+  applyModelEnv(on ? envTexture : null);
 }
 
 envToggle.checked = localStorage.getItem(ENV_KEY) !== 'off';

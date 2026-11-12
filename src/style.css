@@ -133,6 +133,20 @@ body.locked #app canvas {
   color: var(--ink-dim);
 }
 
+.settings-credits {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.settings-credits a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .settings-row select {
   flex: 1;
   min-width: 0;

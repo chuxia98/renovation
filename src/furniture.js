@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { pbrTextures } from './pbr.js';
+import { modelGroup } from './models.js';
 
 // 家具统一约定：原点在地面中心，正面朝 +Z
 
@@ -326,6 +327,13 @@ function tvLong() {
   for (let i = 0; i < 3; i++) {
     part(g, B(0.2, 0.03, 0.14), BOOK_MATS[i], 1.0, 0.41 + i * 0.03, 0);
   }
+  return g;
+}
+
+function tvLongModel() {
+  const g = modelGroup('cabinet', 2.4, 0.5);
+  if (!g) return tvLong();
+  addTv(g, new THREE.Box3().setFromObject(g).max.y, 1.56);
   return g;
 }
 
@@ -787,24 +795,24 @@ export const CATALOG = [
   {
     id: 'sofa',
     variants: [
-      V('straight', 2.1, 0.9, () => sofaStraight(2.1, 2)),
+      V('straight', 2.1, 1.0, () => modelGroup('sofaVelvet', 2.1, 1.0) ?? sofaStraight(2.1, 2)),
       V('corner', 2.6, 1.7, sofaCorner),
-      V('loveseat', 1.6, 0.9, () => sofaStraight(1.6, 1)),
+      V('loveseat', 1.6, 0.76, () => modelGroup('sofaVelvet', 1.6, 0.76) ?? sofaStraight(1.6, 1)),
     ],
   },
   {
     id: 'armchair',
     variants: [
-      V('lounge', 0.85, 0.85, armchairLounge),
-      V('shell', 0.8, 0.8, armchairShell),
+      V('lounge', 0.85, 1.0, () => modelGroup('loungeChair', 0.85, 1.0) ?? armchairLounge()),
+      V('shell', 0.8, 0.56, () => modelGroup('sheenChair', 0.8, 0.56) ?? armchairShell()),
       V('rattan', 0.76, 0.74, armchairRattan),
     ],
   },
   {
     id: 'coffee',
     variants: [
-      V('rect', 1.1, 0.6, coffeeRect),
-      V('round', 0.9, 0.9, coffeeRound),
+      V('rect', 1.1, 0.55, () => modelGroup('coffeeModern', 1.1, 0.55) ?? coffeeRect()),
+      V('round', 0.9, 0.9, () => modelGroup('coffeeRound', 0.9, 0.9) ?? coffeeRound()),
       V('nesting', 1.2, 0.9, coffeeNesting),
     ],
   },
@@ -813,7 +821,7 @@ export const CATALOG = [
     variants: [
       V('storage', 1.8, 0.4, tvStorage),
       V('floating', 1.8, 0.34, tvFloating),
-      V('long', 2.4, 0.38, tvLong),
+      V('long', 2.4, 0.5, tvLongModel),
     ],
   },
   { id: 'rug', w: 2.4, d: 1.6, build: rug, flat: true },
@@ -828,7 +836,7 @@ export const CATALOG = [
   {
     id: 'chair',
     variants: [
-      V('fabric', 0.46, 0.5, chairFabric),
+      V('fabric', 0.45, 0.6, () => modelGroup('diningChair', 0.45, 0.6) ?? chairFabric()),
       V('wood', 0.46, 0.5, chairWood),
       V('rattan', 0.46, 0.5, chairRattan),
     ],
@@ -840,7 +848,7 @@ export const CATALOG = [
     variants: [
       V('drawer', 0.45, 0.4, nightstandDrawer),
       V('round', 0.44, 0.44, nightstandRound),
-      V('open', 0.45, 0.38, nightstandOpen),
+      V('open', 0.45, 0.38, () => modelGroup('sideTable', 0.45, 0.38) ?? nightstandOpen()),
     ],
   },
   {
@@ -861,13 +869,13 @@ export const CATALOG = [
   {
     id: 'shelf',
     variants: [
-      V('open', 0.9, 0.35, bookshelfOpen),
+      V('open', 0.9, 0.24, () => modelGroup('shelf01', 0.9, 0.24) ?? bookshelfOpen()),
       V('ladder', 0.72, 0.5, bookshelfLadder),
       V('cabinet', 1.0, 0.38, bookshelfCabinet),
     ],
   },
   { id: 'lamp', w: 0.4, d: 0.4, build: floorLamp },
-  { id: 'plant', w: 0.5, d: 0.5, build: plant },
+  { id: 'plant', w: 0.6, d: 0.56, build: () => modelGroup('plant02', 0.6, 0.56) ?? plant() },
   { id: 'fridge', w: 0.7, d: 0.65, build: fridge },
   { id: 'counter', w: 1.8, d: 0.6, build: counter },
   { id: 'toilet', w: 0.42, d: 0.7, build: toilet },
