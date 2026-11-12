@@ -59,6 +59,10 @@ export const DICT = {
     'style.balcony': 'Balcony front',
     'style.balcony.solid': 'Solid wall 1.3 m',
     'style.balcony.glass': 'Floor-to-ceiling glass',
+    'style.niche': 'Basin side wall',
+    'style.niche.semi': 'Half height',
+    'style.niche.full': 'Full height',
+    'style.niche.height': 'Height',
 
     'scheme.title': 'Layouts',
     'scheme.subtitle': 'Saved in this browser · Load anytime',
@@ -234,6 +238,10 @@ export const DICT = {
     'style.balcony': '阳台围护',
     'style.balcony.solid': '实墙 1.3 m',
     'style.balcony.glass': '落地玻璃',
+    'style.niche': '洗手台侧墙',
+    'style.niche.semi': '半封闭',
+    'style.niche.full': '全封闭',
+    'style.niche.height': '高度',
 
     'scheme.title': '布局方案',
     'scheme.subtitle': '保存在本浏览器 · 随时载入',

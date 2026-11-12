@@ -53,7 +53,10 @@ function defaultRoomStyle(roomId) {
 }
 
 export function defaultStyle() {
-  const style = { floorLay: { mode: 'room', offsetX: 0, offsetZ: 0 } };
+  const style = {
+    floorLay: { mode: 'room', offsetX: 0, offsetZ: 0 },
+    nicheWall: { semi: true, height: 1.3 },
+  };
   for (const r of ROOMS) style[r.id] = defaultRoomStyle(r.id);
   return style;
 }
@@ -79,6 +82,7 @@ function loadStyle() {
     const raw = migrateRoomKeys(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
     if (!raw || typeof raw !== 'object') return base;
     if (raw.floorLay) base.floorLay = { ...base.floorLay, ...raw.floorLay };
+    if (raw.nicheWall) base.nicheWall = { ...base.nicheWall, ...raw.nicheWall };
     for (const r of ROOMS) {
       const saved = raw[r.id];
       if (!saved) continue;
@@ -96,6 +100,7 @@ let style = loadStyle();
 let floors = [];
 let walls = [];
 let balcony = null;
+let niche = null;
 let neutralWallMat = null;
 const wallMatCache = new Map();
 
@@ -168,13 +173,15 @@ function applyWalls() {
   for (const mesh of walls) applyWallMesh(mesh);
 }
 
-export function bindApartment({ floorMeshes, wallMeshes, balcony: balconyController }) {
+export function bindApartment({ floorMeshes, wallMeshes, balcony: balconyController, nicheWall: nicheController }) {
   floors = floorMeshes;
   walls = wallMeshes;
   balcony = balconyController;
+  niche = nicheController;
   applyFloors();
   applyWalls();
   balcony?.setMode(style.balcony.enclosure);
+  niche?.set(style.nicheWall);
 }
 
 export function getStyle() {
@@ -187,6 +194,16 @@ export function getRoomStyle(roomId) {
 
 export function getFloorLay() {
   return style.floorLay;
+}
+
+export function getNicheWall() {
+  return style.nicheWall;
+}
+
+export function setNicheWall(patch) {
+  style.nicheWall = { ...style.nicheWall, ...patch };
+  persist();
+  niche?.set(style.nicheWall);
 }
 
 export function setFloorLay(patch) {
@@ -226,6 +243,7 @@ export function setStyleSnapshot(snapshot) {
   const snap = migrateRoomKeys(snapshot);
   if (snap && typeof snap === 'object') {
     if (snap.floorLay) base.floorLay = { ...base.floorLay, ...snap.floorLay };
+    if (snap.nicheWall) base.nicheWall = { ...base.nicheWall, ...snap.nicheWall };
     for (const r of ROOMS) {
       const saved = snap[r.id];
       if (!saved) continue;
@@ -239,4 +257,5 @@ export function setStyleSnapshot(snapshot) {
   applyFloors();
   applyWalls();
   balcony?.setMode(style.balcony.enclosure);
+  niche?.set(style.nicheWall);
 }

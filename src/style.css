@@ -239,6 +239,20 @@ body.locked #app canvas {
   font-weight: 600;
 }
 
+/* 弹窗打开时隐藏背景 HUD，避免矮屏/横屏面板与齿轮、小地图重叠 */
+#minimap,
+#settings,
+#mode {
+  transition: opacity 0.2s ease;
+}
+
+body.panel-open #minimap,
+body.panel-open #settings,
+body.panel-open #mode {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---------- Minimap ---------- */
 
 #minimap {
@@ -1111,5 +1125,15 @@ body.build #build-fab {
   }
   .bar-head {
     flex-direction: column;
+    align-items: stretch;
+  }
+  .bar-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .bar-actions button {
+    flex: 1 1 auto;
+    padding: 7px 10px;
+    font-size: 11px;
   }
 }

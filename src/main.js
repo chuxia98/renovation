@@ -11,7 +11,7 @@ import { createMinimap, createRadar } from './minimap.js';
 import { t, getLang, setLang, applyStatic, initLang, onLangChange } from './i18n.js';
 import {
   bindApartment, updateRoom, getRoomStyle, getStyleSnapshot, setStyleSnapshot,
-  getFloorLay, setFloorLay,
+  getFloorLay, setFloorLay, getNicheWall, setNicheWall,
   FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
 } from './style.js';
 import { FLOOR_DEFAULTS, setSkyTexture } from './textures.js';
@@ -58,11 +58,11 @@ await Promise.all([loadPbr(), loadModels()]);
 applyFurnitureTextures();
 
 const {
-  colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions,
+  colliders, floorMeshes, wallMeshes, interactions, balcony, nicheWall, updateInteractions,
   glossyMaterials, daylightLights,
 } = buildApartment(scene, envTexture);
 applyGlossyEnv(envTexture);
-bindApartment({ floorMeshes, wallMeshes, balcony });
+bindApartment({ floorMeshes, wallMeshes, balcony, nicheWall });
 const interactionRoots = interactions.flatMap((it) => it.roots);
 
 // ---------- 家具 ----------
@@ -442,6 +442,7 @@ document.getElementById('btn-schemes').addEventListener('click', () => {
     stylePanel.classList.add('hidden');
     schemeNameEl.focus();
   }
+  syncPanelOverlay();
 });
 
 document.getElementById('btn-save-scheme').addEventListener('click', saveScheme);
@@ -463,6 +464,10 @@ const wallSwatchesEl = document.getElementById('style-wall-swatches');
 const wallColorEl = document.getElementById('style-wall-color');
 const balconyModeEl = document.getElementById('style-balcony-mode');
 const balconyRowEl = document.getElementById('style-balcony-row');
+const nicheModeEl = document.getElementById('style-niche-mode');
+const nicheHeightEl = document.getElementById('style-niche-height');
+const nicheHeightRow = document.getElementById('style-niche-height-row');
+const nicheHeightVal = document.getElementById('style-niche-height-val');
 const floorLayEl = document.getElementById('style-floor-lay');
 const layXEl = document.getElementById('style-lay-offset-x');
 const layXRow = document.getElementById('style-lay-offset-x-row');
@@ -542,6 +547,12 @@ function renderStyleControls() {
   });
   wallColorEl.value = conf.wall.color;
 
+  const niche = getNicheWall();
+  for (const btn of nicheModeEl.children) btn.classList.toggle('active', (btn.dataset.mode === 'semi') === niche.semi);
+  nicheHeightRow.classList.toggle('hidden', !niche.semi);
+  nicheHeightEl.value = niche.height;
+  nicheHeightVal.textContent = `${niche.height.toFixed(2)} m`;
+
   balconyRowEl.classList.toggle('hidden', styleRoom !== 'balcony');
   if (styleRoom === 'balcony') {
     for (const btn of balconyModeEl.children) btn.classList.toggle('active', btn.dataset.mode === conf.enclosure);
@@ -596,6 +607,21 @@ balconyModeEl.addEventListener('click', (e) => {
   renderStyleControls();
 });
 
+nicheModeEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const semi = btn.dataset.mode === 'semi';
+  if (getNicheWall().semi === semi) return;
+  setNicheWall({ semi });
+  renderStyleControls();
+});
+
+nicheHeightEl.addEventListener('input', () => {
+  const v = Number(nicheHeightEl.value);
+  setNicheWall({ height: v });
+  nicheHeightVal.textContent = `${v.toFixed(2)} m`;
+});
+
 floorLayEl.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn || getFloorLay().mode === btn.dataset.lay) return;
@@ -621,9 +647,21 @@ document.getElementById('btn-style').addEventListener('click', () => {
     schemePanel.classList.add('hidden');
     renderStyleControls();
   }
+  syncPanelOverlay();
 });
 
 renderStyleControls();
+
+// 弹窗高度随底栏顶部位置钳制，避免矮屏/横屏时面板顶部被裁切
+function syncPanelOverlay() {
+  const open = !stylePanel.classList.contains('hidden') || !schemePanel.classList.contains('hidden');
+  body.classList.toggle('panel-open', open);
+  if (!open) return;
+  const avail = Math.max(120, buildbar.getBoundingClientRect().top - 18);
+  stylePanel.style.maxHeight = `${Math.min(440, avail)}px`;
+  schemePanel.style.maxHeight = `${Math.min(320, avail)}px`;
+}
+new ResizeObserver(syncPanelOverlay).observe(buildbar);
 
 // ---------- 设置 ----------
 
@@ -943,6 +981,7 @@ function exitBuild() {
   buildbar.classList.add('hidden');
   schemePanel.classList.add('hidden');
   stylePanel.classList.add('hidden');
+  syncPanelOverlay();
   modeEl.classList.remove('build');
   updateModeLabel();
   renderVariantBar();
@@ -1128,6 +1167,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  syncPanelOverlay();
 });
 
 // ---------- 启动 ----------

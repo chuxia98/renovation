@@ -20,6 +20,7 @@ export function buildApartment(scene, envTexture) {
   const colliders = [];
   const floorMeshes = [];
   const wallMeshes = [];
+  const nicheMeshes = [];
   const interactions = [];
   const daylightLights = [];
 
@@ -164,6 +165,8 @@ export function buildApartment(scene, envTexture) {
     const a0 = o === 'v' ? mz(w.from) : mx(w.from);
     const a1 = o === 'v' ? mz(w.to) : mx(w.to);
     const c = o === 'v' ? mx(w.at) : mz(w.at);
+    // 洗手台凹口南侧墙：支持半封闭矮墙，记录原始截面供运行时改高度
+    const isNiche = o === 'h' && w.at === 1306 && w.from === 1138;
 
     const seg = (s, e, y0, y1, collide) => {
       const len = e - s;
@@ -180,6 +183,10 @@ export function buildApartment(scene, envTexture) {
           ? { axis: 'v', plus: roomAt(c + ROOM_PROBE, smid), minus: roomAt(c - ROOM_PROBE, smid) }
           : { axis: 'h', plus: roomAt(smid, c + ROOM_PROBE), minus: roomAt(smid, c - ROOM_PROBE) };
         wallMeshes.push(mesh);
+        if (isNiche) {
+          mesh.userData.niche = { sx: slen, sz: t };
+          nicheMeshes.push(mesh);
+        }
       }
       // 踢脚线
       const mid = (s + e) / 2;
@@ -221,6 +228,20 @@ export function buildApartment(scene, envTexture) {
     }
     if (cursor < a1) seg(cursor, a1, 0, WALL_H, true);
   }
+
+  // 洗手台侧墙：半封闭=可调矮墙，全封闭=到顶实墙
+  const nicheWall = {
+    set({ semi, height }) {
+      const h = semi ? Math.min(2.6, Math.max(0.6, height)) : WALL_H;
+      for (const mesh of nicheMeshes) {
+        const { sx, sz } = mesh.userData.niche;
+        mesh.geometry.dispose();
+        mesh.geometry = new THREE.BoxGeometry(sx, h, sz);
+        scaleWallUVs(mesh.geometry, sx, h, sz);
+        mesh.position.y = h / 2;
+      }
+    },
+  };
 
   // ---------- 窗 ----------
 
@@ -739,7 +760,7 @@ export function buildApartment(scene, envTexture) {
   }
 
   return {
-    root, colliders, floorMeshes, wallMeshes, interactions, balcony, updateInteractions,
+    root, colliders, floorMeshes, wallMeshes, interactions, balcony, nicheWall, updateInteractions,
     glossyMaterials, daylightLights,
   };
 }
