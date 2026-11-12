@@ -165,11 +165,11 @@ export const FLOORS = [
   { x1: 1781, z1: 662, x2: 1963, z2: 690, mat: 'wood', room: 'entry' },
 ];
 
-// 飘窗：side 为外凸方向
+// 飘窗：side 为外凸方向；zo/xo 为两侧墙垛外边界（对齐相邻墙线，见户型图）
 export const BAYS = [
-  { side: 'west', z0: 922, z1: 1188, sill: 0.5, top: 2.2, depth: 115 },
-  { side: 'west', z0: 1442, z1: 1708, sill: 0.5, top: 2.2, depth: 115 },
-  { side: 'south', x0: 799, x1: 1119, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'west', z0: 922, z1: 1188, zo0: 813, zo1: 1297, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'west', z0: 1442, z1: 1708, zo0: 1297, zo1: 1835, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'south', x0: 799, x1: 1119, xo0: 601, xo1: 1318, sill: 0.5, top: 2.2, depth: 115 },
 ];
 
 // 吸顶灯位置（世界坐标，米）

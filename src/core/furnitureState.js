@@ -118,11 +118,14 @@ export function applyLayout(data) {
   }
 }
 
-// 首次进入（无存档）时的默认布置：马桶靠卫生间东墙、洗手台靠入口右手凹口东墙，均朝西
-const DEFAULT_LAYOUT = [
-  { t: 'toilet', v: 'standard', x: 4.8, z: 2.6, r: 270 },
-  { t: 'washbasin', v: '', x: 4.91, z: 4.08, r: 270 },
-];
+// 内置默认布局：空房 / 洁具（马桶靠卫生间东墙、洗手台靠入口右手凹口东墙，均朝西）
+export const LAYOUT_PRESETS = {
+  empty: [],
+  sanitary: [
+    { t: 'toilet', v: 'standard', x: 4.8, z: 2.6, r: 270 },
+    { t: 'washbasin', v: '', x: 4.91, z: 4.08, r: 270 },
+  ],
+};
 
 export function loadLayout() {
   let data = null;
@@ -132,19 +135,7 @@ export function loadLayout() {
   } catch {
     data = null;
   }
-  if (!Array.isArray(data)) data = DEFAULT_LAYOUT.map((p) => ({ ...p }));
-  // 旧存档缺默认洁具：逐件一次性补放，之后手动删除不再恢复
-  try {
-    for (const def of DEFAULT_LAYOUT) {
-      const key = `${STORE_KEY}-${def.t}-seeded`;
-      if (localStorage.getItem(key)) continue;
-      if (!data.some((p) => p.t === def.t)) data.push({ ...def });
-      localStorage.setItem(key, '1');
-    }
-  } catch {
-    /* localStorage 不可用时静默跳过 */
-  }
-  applyLayout(data);
+  applyLayout(Array.isArray(data) ? data : LAYOUT_PRESETS.empty);
   saveLayout();
 }
 

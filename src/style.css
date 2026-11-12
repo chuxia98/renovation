@@ -676,7 +676,9 @@ body.build #crosshair {
   right: 0;
   bottom: calc(100% + 10px);
   max-height: min(320px, 46vh);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 14px 16px;
   border: 1px solid var(--glass-border);
   border-radius: 14px;
@@ -686,6 +688,7 @@ body.build #crosshair {
 }
 
 .scheme-head {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -696,11 +699,52 @@ body.build #crosshair {
   letter-spacing: 0.08em;
 }
 
+/* 弹窗导航条固定顶部，只有 body 滚动 */
+.pop-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .scheme-head .head-sub {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.03em;
   color: var(--ink-dim);
+}
+
+.pop-close {
+  margin-left: auto;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pop-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 弹层打开时收起目录 pop，只留当前弹层 */
+#buildbar.subpanel .bar-head,
+#buildbar.subpanel #catalog,
+#buildbar.subpanel #variant-bar {
+  display: none;
+}
+
+#buildbar.subpanel {
+  padding: 0;
+  border: none;
+  background: none;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .scheme-save {
@@ -775,7 +819,9 @@ body.build #crosshair {
   bottom: calc(100% + 10px);
   width: min(430px, 100%);
   max-height: min(440px, 60vh);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 14px 16px;
   border: 1px solid var(--glass-border);
   border-radius: 14px;

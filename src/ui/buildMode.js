@@ -247,6 +247,7 @@ export function exitBuild() {
   controlsRef.lookOnly = false;
   body.classList.remove('build');
   buildbar.classList.add('hidden');
+  buildbar.classList.remove('subpanel');
   schemePanel.classList.add('hidden');
   stylePanel.classList.add('hidden');
   syncPanelOverlay();

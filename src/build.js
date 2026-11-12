@@ -189,6 +189,35 @@ export function buildApartment(scene, envTexture) {
     // 洗手台凹口南侧墙：支持半封闭矮墙，记录原始截面供运行时改高度
     const isNiche = o === 'h' && w.at === 1306 && w.from === 1138;
 
+    // 踢脚线端头合并：可见交线在支承墙外表面，端头只到中心线会被支承墙
+    // 从内表面埋住，留下一段墙厚宽的缺口； covered 侧延伸到支承墙远表面埋死，
+    // 凸侧包过拐角到远表面+踢脚厚，端面与另一条踢脚外表面齐平，对方端头埋在其后
+    const off = t / 2 + 0.007;
+    const junction = (endPx) => {
+      for (const p of wallsGeo) {
+        if (p.o === w.o) continue;
+        if (w.at < p.from - 1 || w.at > p.to + 1) continue;
+        if (Math.abs(endPx - p.at) > p.t / 2 + 1) continue;
+        return p;
+      }
+      return null;
+    };
+    const endAdj = (p, isFrom, side) => {
+      if (!p) return null;
+      const pc = p.o === 'v' ? mx(p.at) : mz(p.at);
+      const ph = p.t / 2 / PX_PER_M;
+      if (isFrom) return pc - ph;
+      const lo = c + side * off - 0.007;
+      const hi = c + side * off + 0.007;
+      const p0 = p.o === 'v' ? mz(p.from) : mx(p.from);
+      const p1 = p.o === 'v' ? mz(p.to) : mx(p.to);
+      return lo >= p0 - 1e-4 && hi <= p1 + 1e-4 ? pc + ph : pc + ph + 0.014;
+    };
+    const jFrom = junction(w.from);
+    const jTo = junction(w.to);
+    const fromAdj = [endAdj(jFrom, true, -1), endAdj(jFrom, true, 1)];
+    const toAdj = [endAdj(jTo, false, -1), endAdj(jTo, false, 1)];
+
     const seg = (s, e, y0, y1, collide) => {
       const len = e - s;
       if (len < 1e-4) return;
@@ -210,15 +239,19 @@ export function buildApartment(scene, envTexture) {
         }
       }
       // 踢脚线
-      const mid = (s + e) / 2;
-      const off = t / 2 + 0.007;
       if (y0 < 0.01) {
+        const s0 = s === a0 && fromAdj[0] != null ? fromAdj[0] : s;
+        const s1 = s === a0 && fromAdj[1] != null ? fromAdj[1] : s;
+        const e0 = e === a1 && toAdj[0] != null ? toAdj[0] : e;
+        const e1 = e === a1 && toAdj[1] != null ? toAdj[1] : e;
+        const m0 = (s0 + e0) / 2;
+        const m1 = (s1 + e1) / 2;
         if (o === 'v') {
-          box(0.014, 0.09, len, doorFrameMat, c - off, 0.045, mid, { cast: false });
-          box(0.014, 0.09, len, doorFrameMat, c + off, 0.045, mid, { cast: false });
+          box(0.014, 0.09, e0 - s0, doorFrameMat, c - off, 0.045, m0, { cast: false });
+          box(0.014, 0.09, e1 - s1, doorFrameMat, c + off, 0.045, m1, { cast: false });
         } else {
-          box(len, 0.09, 0.014, doorFrameMat, mid, 0.045, c - off, { cast: false });
-          box(len, 0.09, 0.014, doorFrameMat, mid, 0.045, c + off, { cast: false });
+          box(e0 - s0, 0.09, 0.014, doorFrameMat, m0, 0.045, c - off, { cast: false });
+          box(e1 - s1, 0.09, 0.014, doorFrameMat, m1, 0.045, c + off, { cast: false });
         }
       }
       if (collide) {
@@ -268,6 +301,9 @@ export function buildApartment(scene, envTexture) {
   const balconyDoor = {
     setPresent(present) {
       for (const s of sliders) s.setPresent(present);
+    },
+    setOpening(p) {
+      for (const s of sliders) s.setOpening(p);
     },
   };
 
@@ -481,6 +517,10 @@ export function buildApartment(scene, envTexture) {
         record.open = !record.open;
         target = record.open ? 1 : 0;
       },
+      setOpening(p) {
+        target = Math.min(1, Math.max(0, p));
+        record.open = target > 0.5;
+      },
       update(dt) {
         if (progress === target) return;
         const step = dt * 1.5;
@@ -505,6 +545,9 @@ export function buildApartment(scene, envTexture) {
           progress = 0;
           applyProgress(0);
         }
+      },
+      setOpening(p) {
+        if (group.visible) record.setOpening(p);
       },
     });
   }
@@ -546,10 +589,15 @@ export function buildApartment(scene, envTexture) {
       box(fw, 0.06, span, frameMat, gx, bay.top - 0.03, midZ);
       for (const zc of [z0 + 0.035, midZ, z1 - 0.035]) box(fw, h, 0.06, frameMat, gx, yMid, zc);
 
-      // 两侧实墙
-      for (const zc of [z0 + 0.03, z1 - 0.03]) {
-        const side = box(depth + 0.06, h, 0.06, wallMat, (outerX + bayOuter) / 2, yMid, zc);
-        scaleWallUVs(side.geometry, depth + 0.06, h, 0.06);
+      // 外两侧实墙墙垛（户型图）：洞口边到外边界、对齐相邻墙线，
+      // 内端埋入房屋墙 5cm，外端收在正面框后 2mm，口字形闭合
+      const zo0 = mz(bay.zo0);
+      const zo1 = mz(bay.zo1);
+      const px0 = bayOuter + 0.007;
+      const px1 = outerX + 0.05;
+      for (const [za, zb] of [[zo0, z0], [z1, zo1]]) {
+        const pier = box(px1 - px0, bay.top, zb - za, wallMat, (px0 + px1) / 2, bay.top / 2, (za + zb) / 2);
+        scaleWallUVs(pier.geometry, px1 - px0, bay.top, zb - za);
       }
     } else {
       const c = mz(wall.at);
@@ -569,9 +617,13 @@ export function buildApartment(scene, envTexture) {
       box(span, 0.06, fw, frameMat, midX, bay.top - 0.03, gz);
       for (const xc of [x0 + 0.035, midX, x1 - 0.035]) box(0.06, h, fw, frameMat, xc, yMid, gz);
 
-      for (const xc of [x0 + 0.03, x1 - 0.03]) {
-        const side = box(0.06, h, depth + 0.06, wallMat, xc, yMid, (outerZ + bayOuter) / 2);
-        scaleWallUVs(side.geometry, 0.06, h, depth + 0.06);
+      const xo0 = mx(bay.xo0);
+      const xo1 = mx(bay.xo1);
+      const pz0 = outerZ - 0.05;
+      const pz1 = bayOuter - 0.007;
+      for (const [xa, xb] of [[xo0, x0], [x1, xo1]]) {
+        const pier = box(xb - xa, bay.top, pz1 - pz0, wallMat, (xa + xb) / 2, bay.top / 2, (pz0 + pz1) / 2);
+        scaleWallUVs(pier.geometry, xb - xa, bay.top, pz1 - pz0);
       }
     }
   }

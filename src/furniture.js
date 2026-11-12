@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { pbrTextures } from './pbr.js';
 import { modelGroup } from './models.js';
 
@@ -61,7 +62,6 @@ const MAT = {
   pillow: fabric(0xf2eee5, 0.95),
   screen: phys({ color: 0x8b98a4, roughness: 0.07, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, vertexColors: true }),
   bezel: phys({ color: 0x0e1013, roughness: 0.35, metalness: 0, clearcoat: 0.7, clearcoatRoughness: 0.2 }),
-  mirror: metalMat(0xc9d8de, 0.04, 1.6),
   glass: phys({
     color: 0xdfeaeb, transparent: true, opacity: 0.12, roughness: 0.03,
     metalness: 0, ior: 1.5, envMapIntensity: 1.5,
@@ -102,7 +102,7 @@ export function applyFurnitureTextures() {
   assign(MAT.stoneTop, marble, 0.35, 0.8);
 }
 
-const GLOSSY_MATS = ['metal', 'brass', 'mirror', 'glass', 'stoneTop', 'screen', 'bezel'];
+const GLOSSY_MATS = ['metal', 'brass', 'glass', 'stoneTop', 'screen', 'bezel'];
 
 // 高反射材质单独挂 HDRI，保留玻璃/金属反射；传 null 时清除
 export function applyGlossyEnv(envTexture) {
@@ -796,9 +796,16 @@ function washbasin() {
   part(g, new THREE.SphereGeometry(0.016, 12, 10), MAT.metal, 0, 1.04, -0.19);
   part(g, CYL(0.011, 0.011, 0.16, 10), MAT.metal, 0, 1.03, -0.11, Math.PI / 2 - 0.18);
   part(g, CYL(0.006, 0.006, 0.07, 8), MAT.metal, 0.03, 1.06, -0.19, 0, 0, -0.5);
-  // 黄铜框镜
+  // 黄铜框镜：实时平面反射照出室内，金属+HDRI 只会映出天空黑地
   part(g, RB(0.94, 0.76, 0.025, 0.01), MAT.brass, 0, 1.55, -0.235);
-  part(g, B(0.88, 0.7, 0.012), MAT.mirror, 0, 1.55, -0.222);
+  part(g, B(0.88, 0.7, 0.012), MAT.bezel, 0, 1.55, -0.222);
+  const mirror = new Reflector(new THREE.PlaneGeometry(0.88, 0.7), {
+    textureWidth: 1024,
+    textureHeight: 1024,
+    color: 0xc9d8de,
+  });
+  mirror.position.set(0, 1.55, -0.215);
+  g.add(mirror);
   return g;
 }
 

@@ -2,14 +2,18 @@ import { ROOMS } from '../plan.js';
 import { t } from '../i18n.js';
 import {
   updateRoom, getRoomStyle, getFloorLay, setFloorLay, getNicheWall, setNicheWall,
-  getGlobalFloor, setGlobalFloor, FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
+  getGlobalFloor, setGlobalFloor, getSliderOpening, setSliderOpening,
+  getLivingIncludesBalcony, setLivingIncludesBalcony,
+  FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
 } from '../style.js';
 import { FLOOR_DEFAULTS } from '../textures.js';
 import { syncPanelOverlay } from './panelOverlay.js';
 
 const stylePanel = document.getElementById('style-panel');
 const schemePanel = document.getElementById('scheme-panel');
+const buildbar = document.getElementById('buildbar');
 const styleRoomEl = document.getElementById('style-room');
+const includeBalconyEl = document.getElementById('style-include-balcony');
 const floorHeadEl = document.getElementById('style-floor-head');
 const floorKindEl = document.getElementById('style-floor-kind');
 const floorSwatchesEl = document.getElementById('style-floor-swatches');
@@ -20,7 +24,9 @@ const wallSwatchesEl = document.getElementById('style-wall-swatches');
 const wallColorEl = document.getElementById('style-wall-color');
 const balconyModeEl = document.getElementById('style-balcony-mode');
 const balconyDoorEl = document.getElementById('style-balcony-door');
-const balconyRowEl = document.getElementById('style-balcony-row');
+const sliderOpeningEl = document.getElementById('style-slider-opening');
+const sliderOpeningRow = document.getElementById('style-slider-opening-row');
+const sliderOpeningVal = document.getElementById('style-slider-opening-val');
 const nicheModeEl = document.getElementById('style-niche-mode');
 const nicheHeightEl = document.getElementById('style-niche-height');
 const nicheHeightRow = document.getElementById('style-niche-height-row');
@@ -33,7 +39,7 @@ const layZEl = document.getElementById('style-lay-offset-z');
 const layZRow = document.getElementById('style-lay-offset-z-row');
 const layZVal = document.getElementById('style-lay-offset-z-val');
 
-let styleRoom = ROOMS[0].id;
+let styleRoom = 'living';
 
 function renderSwatches(el, colors, active, onPick) {
   el.textContent = '';
@@ -88,8 +94,10 @@ function applyFloorPatch(patch) {
 }
 
 export function renderStyleControls() {
+  if (getLivingIncludesBalcony() && styleRoom === 'balcony') styleRoom = 'living';
   const conf = getRoomStyle(styleRoom);
   styleRoomEl.value = styleRoom;
+  includeBalconyEl.checked = getLivingIncludesBalcony();
   renderFloorLay();
 
   const continuous = getFloorLay().mode === 'continuous';
@@ -116,15 +124,26 @@ export function renderStyleControls() {
   nicheHeightEl.value = niche.height;
   nicheHeightVal.textContent = `${niche.height.toFixed(2)} m`;
 
-  balconyRowEl.classList.toggle('hidden', styleRoom !== 'balcony');
-  if (styleRoom === 'balcony') {
-    for (const btn of balconyModeEl.children) btn.classList.toggle('active', btn.dataset.mode === conf.enclosure);
-    for (const btn of balconyDoorEl.children) btn.classList.toggle('active', (btn.dataset.door === 'yes') === conf.door);
-  }
+  const balconyConf = getRoomStyle('balcony');
+  for (const btn of balconyModeEl.children) btn.classList.toggle('active', btn.dataset.mode === balconyConf.enclosure);
+  for (const btn of balconyDoorEl.children) btn.classList.toggle('active', (btn.dataset.door === 'yes') === balconyConf.door);
+  sliderOpeningRow.classList.toggle('hidden', !balconyConf.door);
+  const opening = getSliderOpening();
+  sliderOpeningEl.value = String(opening);
+  sliderOpeningVal.textContent = `${Math.round(opening * 100)}%`;
 }
 
 export function renderRoomOptions() {
-  for (const opt of styleRoomEl.options) opt.textContent = t(`room.${opt.value}`);
+  const merged = getLivingIncludesBalcony();
+  styleRoomEl.textContent = '';
+  for (const r of ROOMS) {
+    if (r.id === 'balcony' && merged) continue;
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = t(`room.${r.id}`);
+    styleRoomEl.appendChild(opt);
+  }
+  styleRoomEl.value = styleRoom;
 }
 
 // 拖动偏移/墙高滑杆时让弹窗半透明，便于看清背后 3D 效果；松手恢复
@@ -148,15 +167,17 @@ function bindDragPreview(el) {
 }
 
 export function initStylePanel() {
-  for (const r of ROOMS) {
-    const opt = document.createElement('option');
-    opt.value = r.id;
-    opt.textContent = t(`room.${r.id}`);
-    styleRoomEl.appendChild(opt);
-  }
+  renderRoomOptions();
 
   styleRoomEl.addEventListener('change', () => {
     styleRoom = styleRoomEl.value;
+    renderStyleControls();
+  });
+
+  includeBalconyEl.addEventListener('change', () => {
+    setLivingIncludesBalcony(includeBalconyEl.checked);
+    if (getLivingIncludesBalcony() && styleRoom === 'balcony') styleRoom = 'living';
+    renderRoomOptions();
     renderStyleControls();
   });
 
@@ -227,6 +248,12 @@ export function initStylePanel() {
     nicheHeightVal.textContent = `${v.toFixed(2)} m`;
   });
 
+  sliderOpeningEl.addEventListener('input', () => {
+    const v = Number(sliderOpeningEl.value);
+    setSliderOpening(v);
+    sliderOpeningVal.textContent = `${Math.round(v * 100)}%`;
+  });
+
   floorLayEl.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn || getFloorLay().mode === btn.dataset.lay) return;
@@ -247,20 +274,33 @@ export function initStylePanel() {
     layZVal.textContent = `${v.toFixed(2)} m`;
   });
 
-  for (const el of [layXEl, layZEl, nicheHeightEl]) bindDragPreview(el);
+  for (const el of [layXEl, layZEl, nicheHeightEl, sliderOpeningEl]) bindDragPreview(el);
   window.addEventListener('pointerup', () => {
     previewDrag = null;
     stylePanel.classList.remove('drag-preview');
   });
 
   document.getElementById('btn-style').addEventListener('click', () => {
-    stylePanel.classList.toggle('hidden');
-    if (!stylePanel.classList.contains('hidden')) {
+    if (stylePanel.classList.contains('hidden')) {
+      stylePanel.classList.remove('hidden');
       schemePanel.classList.add('hidden');
+      buildbar.classList.add('subpanel');
       renderStyleControls();
+    } else {
+      closeStylePanel();
     }
     syncPanelOverlay();
   });
 
+  document.getElementById('style-close').addEventListener('click', () => {
+    closeStylePanel();
+    syncPanelOverlay();
+  });
+
   renderStyleControls();
+}
+
+function closeStylePanel() {
+  stylePanel.classList.add('hidden');
+  buildbar.classList.remove('subpanel');
 }
