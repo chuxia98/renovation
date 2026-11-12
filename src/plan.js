@@ -152,7 +152,7 @@ export const FLOORS = [
   { x1: 1318, z1: 503, x2: 1727, z2: 956, mat: 'tile', room: 'kitchen' },  // 厨房
   { x1: 1318, z1: 966, x2: 2016, z2: 2121, mat: 'wood', room: 'living' },  // 客餐厅
   { x1: 1766, z1: 690, x2: 2016, z2: 966, mat: 'wood', room: 'entry' },    // 玄关
-  { x1: 1318, z1: 2157, x2: 2103, z2: 2470, mat: 'tile', room: 'balcony' },// 阳台
+  { x1: 1318, z1: 2157, x2: 2016, z2: 2470, mat: 'tile', room: 'balcony' },// 阳台
   { x1: 1766, z1: 464, x2: 2016, z2: 662, mat: 'stone', room: 'porch' },   // 入户平台
 
   // 门洞 / 过门石，跟随相邻房间样式

@@ -56,9 +56,29 @@ export function buildApartment(scene, envTexture) {
     uv.needsUpdate = true;
   }
 
+  // T 形交接：把抵接墙端头埋进支承墙中心线，端头面不再与支承墙侧面共面（消除闪烁），
+  // 交点也落在中心线上，长墙才能按房间正确切段。
+  // L 形拐角（两墙互相抵接结束）：端头埋到中心线会留下全高竖缝，
+  // 改为贴支承墙外表面内退 1px，拐角闭合且不共面
+  const wallsGeo = WALLS.map((w) => {
+    const snap = (end) => {
+      for (const p of WALLS) {
+        if (p.o === w.o) continue;
+        if (w.at < p.from - 1 || w.at > p.to + 1) continue;
+        if (Math.abs(end - p.at) > p.t / 2 + 1) continue;
+        const mutual = Math.abs(p.from - w.at) <= w.t / 2 + 1 || Math.abs(p.to - w.at) <= w.t / 2 + 1;
+        if (!mutual || end < p.at) return p.at;
+        const far = p.at + p.t / 2;
+        return Math.abs(end - far) <= 0.75 ? far - 1 : end;
+      }
+      return end;
+    };
+    return { ...w, from: snap(w.from), to: snap(w.to) };
+  });
+
   // 其他方向的墙体在本墙上的交点，用于把长墙切成单房间段
-  const hBreaks = WALLS.filter((w) => w.o === 'h').map((w) => ({ at: mz(w.at), from: mx(w.from), to: mx(w.to) }));
-  const vBreaks = WALLS.filter((w) => w.o === 'v').map((w) => ({ at: mx(w.at), from: mz(w.from), to: mz(w.to) }));
+  const hBreaks = wallsGeo.filter((w) => w.o === 'h').map((w) => ({ at: mz(w.at), from: mx(w.from), to: mx(w.to) }));
+  const vBreaks = wallsGeo.filter((w) => w.o === 'v').map((w) => ({ at: mx(w.at), from: mz(w.from), to: mz(w.to) }));
 
   function splitByJunctions(o, c, s, e) {
     const breaks = (o === 'v' ? hBreaks : vBreaks)
@@ -160,7 +180,7 @@ export function buildApartment(scene, envTexture) {
 
   // ---------- 墙体 ----------
 
-  for (const w of WALLS) {
+  for (const w of wallsGeo) {
     const t = w.t / PX_PER_M;
     const o = w.o;
     const a0 = o === 'v' ? mz(w.from) : mx(w.from);
@@ -496,7 +516,7 @@ export function buildApartment(scene, envTexture) {
   }
 
   function addBay(bay) {
-    const wall = WALLS.find(
+    const wall = wallsGeo.find(
       (w) => w.openings.some((op) => (bay.side === 'west' ? w.o === 'v' : w.o === 'h') && op.from === (bay.z0 ?? bay.x0) && op.bay),
     );
     if (!wall) return;
@@ -558,8 +578,9 @@ export function buildApartment(scene, envTexture) {
 
   // ---------- 阳台半封闭围护 ----------
 
-  const eastWallT = 0.12;
-  const eastWallX = mx(2103) - eastWallT / 2;
+  // 阳台东墙与客厅东外墙（v@2034）同线同厚，向南直接延续
+  const eastWallT = 37 / PX_PER_M;
+  const eastWallX = mx(2034);
   const balconySolid = new THREE.Group();
   const balconyGlass = new THREE.Group();
   balconySolid.name = 'balcony-solid';
@@ -608,12 +629,6 @@ export function buildApartment(scene, envTexture) {
       (x0 + x1) / 2, southZ - 1.2,
       x1 - x0, 1.2,
     );
-
-    // 北侧与客厅东外墙之间的缺口，补实墙
-    const nx0 = mx(2052);
-    const notch = box(x1 - nx0, WALL_H, eastT, wallMat, (nx0 + x1) / 2, WALL_H / 2, z0);
-    scaleWallUVs(notch.geometry, x1 - nx0, WALL_H, eastT);
-    addCollider(nx0, x1, z0 - eastT / 2, z0 + eastT / 2);
 
     function addFrontGlazing(parent, gx0, gx1, z, base, glassTop, transom) {
       const span = gx1 - gx0;
@@ -666,7 +681,7 @@ export function buildApartment(scene, envTexture) {
     daylightLights.push(light);
   }
 
-  for (const w of WALLS) {
+  for (const w of wallsGeo) {
     const c = w.o === 'v' ? mx(w.at) : mz(w.at);
     for (const op of w.openings) {
       if (!op.light) continue;

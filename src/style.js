@@ -169,9 +169,8 @@ function applyWallMesh(mesh) {
   const neutral = wallMaterial(null);
   const plus = wallMaterial(sides.plus);
   const minus = wallMaterial(sides.minus);
-  mesh.material = sides.axis === 'v'
-    ? [plus, minus, neutral, neutral, neutral, neutral]
-    : [neutral, neutral, neutral, neutral, plus, minus];
+  // 端头面跟随同侧饰面：L 形拐角内退缝不露中性色
+  mesh.material = [plus, minus, neutral, neutral, plus, minus];
 }
 
 function applyFloors() {

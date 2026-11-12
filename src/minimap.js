@@ -139,9 +139,9 @@ export function createMinimap(canvas, getState) {
     ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.moveTo(X(mx(1318)), Z(mz(2470) - 0.03));
-    ctx.lineTo(X(mx(2103)), Z(mz(2470) - 0.03));
-    ctx.moveTo(X(mx(2103) - 0.03), Z(mz(2157)));
-    ctx.lineTo(X(mx(2103) - 0.03), Z(mz(2470)));
+    ctx.lineTo(X(mx(2034)), Z(mz(2470) - 0.03));
+    ctx.moveTo(X(mx(2034) - 0.03), Z(mz(2157)));
+    ctx.lineTo(X(mx(2034) - 0.03), Z(mz(2470)));
     ctx.stroke();
 
     const s = getState();
@@ -283,9 +283,9 @@ export function createRadar(canvas, getState) {
     ctx.lineWidth = Math.max(1 / scale, 0.08);
     ctx.beginPath();
     ctx.moveTo(mx(1318), mz(2470) - 0.03);
-    ctx.lineTo(mx(2103), mz(2470) - 0.03);
-    ctx.moveTo(mx(2103) - 0.03, mz(2157));
-    ctx.lineTo(mx(2103) - 0.03, mz(2470));
+    ctx.lineTo(mx(2034), mz(2470) - 0.03);
+    ctx.moveTo(mx(2034) - 0.03, mz(2157));
+    ctx.lineTo(mx(2034) - 0.03, mz(2470));
     ctx.stroke();
 
     for (const p of st.placements) {
