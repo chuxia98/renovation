@@ -126,6 +126,23 @@ function part(parent, geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
 const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const RB = (w, h, d, r = 0.02) => new RoundedBoxGeometry(w, h, d, 3, r);
 const CYL = (rt, rb, h, seg = 20) => new THREE.CylinderGeometry(rt, rb, h, seg);
+const LATHE = (pts, seg = 32) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+
+// 椭圆座圈 / 盖板：带圆角的挤出环，hole 为内孔半径
+function ovalGeo(rx, rz, thick, hole = null, bevel = 0.008) {
+  const shape = new THREE.Shape();
+  shape.absellipse(0, 0, rx, rz, 0, Math.PI * 2, false, 0);
+  if (hole) {
+    const path = new THREE.Path();
+    path.absellipse(0, 0, hole[0], hole[1], 0, Math.PI * 2, true, 0);
+    shape.holes.push(path);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: thick, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 28,
+  });
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
 
 // ---------- 软装 ----------
 
@@ -695,31 +712,93 @@ function counter() {
   return g;
 }
 
-function toilet() {
+// 分体式：旋成体 pedestal + 空心桶身 + 座圈盖板 + 双档冲水按钮
+function toiletStandard() {
   const g = new THREE.Group();
-  part(g, B(0.34, 0.34, 0.46), MAT.ceramic, 0, 0.18, 0.03);
-  const bowl = part(g, CYL(0.19, 0.15, 0.16, 24), MAT.ceramic, 0, 0.4, 0.04);
+  const bowl = part(g, LATHE([
+    [0.14, 0], [0.13, 0.015], [0.1, 0.1], [0.095, 0.16], [0.12, 0.24],
+    [0.16, 0.31], [0.185, 0.36], [0.19, 0.4], [0.16, 0.4], [0.13, 0.35], [0.09, 0.31], [0, 0.29],
+  ]), MAT.ceramic, 0, 0, 0.08);
+  bowl.scale.z = 1.3;
+  part(g, ovalGeo(0.185, 0.235, 0.02, [0.125, 0.165]), MAT.ceramic, 0, 0.4, 0.08);
+  part(g, ovalGeo(0.19, 0.24, 0.016), MAT.ceramic, 0, 0.432, 0.08);
+  // 桶身尾部安装平台：水箱坐在其上，与桶身连成整体
+  part(g, RB(0.32, 0.14, 0.26, 0.04), MAT.ceramic, 0, 0.32, -0.21);
+  part(g, B(0.06, 0.025, 0.05), MAT.metal, 0, 0.435, -0.16);
+  part(g, RB(0.4, 0.4, 0.17, 0.025), MAT.ceramic, 0, 0.56, -0.26);
+  part(g, RB(0.42, 0.03, 0.19, 0.012), MAT.ceramic, 0, 0.775, -0.26);
+  part(g, CYL(0.016, 0.016, 0.01, 14), MAT.metal, -0.022, 0.795, -0.26);
+  part(g, CYL(0.013, 0.013, 0.01, 14), MAT.metal, 0.022, 0.795, -0.26);
+  return g;
+}
+
+// 一体式智能马桶：连续曲面机身、集成盖板 + 侧控板 + 夜灯
+function toiletSmart() {
+  const g = new THREE.Group();
+  const led = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x6fc4ff, emissiveIntensity: 1.4, roughness: 0.4 });
+  const body = part(g, LATHE([
+    [0.16, 0], [0.15, 0.02], [0.125, 0.12], [0.13, 0.22], [0.17, 0.32],
+    [0.19, 0.4], [0.16, 0.405], [0.12, 0.36], [0, 0.34],
+  ]), MAT.ceramic, 0, 0, 0.05);
+  body.scale.z = 1.3;
+  part(g, RB(0.36, 0.18, 0.22, 0.07), MAT.ceramic, 0, 0.46, -0.24);
+  part(g, ovalGeo(0.185, 0.235, 0.018, [0.125, 0.165]), MAT.white, 0, 0.405, 0.05);
+  part(g, ovalGeo(0.19, 0.24, 0.02), MAT.white, 0, 0.432, 0.05);
+  // 侧控板 + 旋钮
+  part(g, RB(0.03, 0.06, 0.2, 0.012), MAT.bezel, 0.19, 0.44, -0.02);
+  part(g, CYL(0.015, 0.015, 0.02, 14), MAT.metal, 0.2, 0.47, -0.1, 0, 0, Math.PI / 2);
+  part(g, B(0.012, 0.02, 0.05), led, 0.205, 0.44, 0.04);
+  // 底部夜灯：贴合机身的弧形灯带
+  const night = new THREE.TorusGeometry(0.14, 0.006, 8, 24, 1.1);
+  night.rotateZ(Math.PI / 2 - 0.55);
+  night.rotateX(Math.PI / 2);
+  const strip = part(g, night, led, 0, 0.06, 0.05);
+  strip.scale.z = 1.3;
+  return g;
+}
+
+// 壁挂式：隐藏水箱面板 + 双冲水面板 + 悬空旋成体桶身
+function toiletWall() {
+  const g = new THREE.Group();
+  part(g, RB(0.5, 0.98, 0.14, 0.02), MAT.white, 0, 0.49, -0.24);
+  part(g, RB(0.16, 0.1, 0.015, 0.008), MAT.metal, 0, 0.92, -0.165);
+  part(g, B(0.06, 0.07, 0.008), MAT.bezel, -0.04, 0.92, -0.155);
+  part(g, B(0.05, 0.07, 0.008), MAT.bezel, 0.04, 0.92, -0.155);
+  const bowl = part(g, LATHE([
+    [0, 0.26], [0.07, 0.27], [0.13, 0.3], [0.17, 0.35], [0.185, 0.4],
+    [0.15, 0.4], [0.12, 0.36], [0, 0.34],
+  ]), MAT.ceramic, 0, 0, 0.06);
   bowl.scale.z = 1.25;
-  const lid = part(g, CYL(0.2, 0.2, 0.03, 24), MAT.ceramic, 0, 0.49, 0.04);
-  lid.scale.z = 1.25;
-  part(g, B(0.42, 0.42, 0.18), MAT.ceramic, 0, 0.62, -0.26);
-  part(g, B(0.5, 0.03, 0.22), MAT.ceramic, 0, 0.84, -0.26);
-  part(g, CYL(0.025, 0.025, 0.02, 12), MAT.metal, 0, 0.86, -0.26);
+  part(g, B(0.24, 0.12, 0.1), MAT.ceramic, 0, 0.36, -0.12);
+  part(g, ovalGeo(0.18, 0.225, 0.02, [0.12, 0.16]), MAT.ceramic, 0, 0.4, 0.06);
+  part(g, ovalGeo(0.185, 0.23, 0.016), MAT.ceramic, 0, 0.432, 0.06);
   return g;
 }
 
 function washbasin() {
   const g = new THREE.Group();
-  part(g, B(0.96, 0.78, 0.48), MAT.oak, 0, 0.4, 0);
-  part(g, B(1.0, 0.05, 0.52), MAT.ceramic, 0, 0.815, 0);
-  const basin = part(g, CYL(0.2, 0.17, 0.1, 24), MAT.ceramic, 0, 0.86, 0);
-  basin.scale.z = 1.3;
-  part(g, B(0.17, 0.05, 0.13), MAT.black, 0, 0.855, 0);
-  part(g, CYL(0.014, 0.014, 0.2, 10), MAT.metal, 0, 0.95, -0.18);
-  part(g, CYL(0.012, 0.012, 0.14, 10), MAT.metal, 0, 1.05, -0.12, Math.PI / 2);
-  part(g, B(0.94, 0.76, 0.03), MAT.metal, 0, 1.55, -0.235);
-  part(g, B(0.88, 0.7, 0.012), MAT.mirror, 0, 1.55, -0.218);
-  for (const x of [-0.36, 0.36]) part(g, B(0.03, 0.2, 0.06), MAT.brass, x, 1.55, -0.19);
+  // 内收踢脚 + 柜体 + 双层抽屉面板
+  part(g, B(0.9, 0.08, 0.4), MAT.black, 0, 0.04, -0.02);
+  part(g, RB(0.96, 0.66, 0.46, 0.02), MAT.oak, 0, 0.41, 0);
+  for (const y of [0.28, 0.56]) {
+    part(g, RB(0.9, 0.24, 0.02, 0.008), MAT.oak, 0, y, 0.235);
+    part(g, CYL(0.008, 0.008, 0.3, 10), MAT.brass, 0, y + 0.09, 0.25, 0, 0, Math.PI / 2);
+  }
+  // 石英石台面 + 空心台上盆 + 下水
+  part(g, RB(1.0, 0.04, 0.52, 0.012), MAT.stoneTop, 0, 0.76, 0);
+  const basin = part(g, LATHE([
+    [0.09, 0], [0.14, 0.015], [0.17, 0.06], [0.165, 0.12], [0.15, 0.125], [0.12, 0.1], [0.08, 0.05], [0, 0.04],
+  ]), MAT.ceramic, 0, 0.78, 0.06);
+  basin.scale.z = 1.15;
+  part(g, CYL(0.02, 0.02, 0.008, 12), MAT.metal, 0, 0.825, 0.06);
+  // 龙头：立管 + 弯头 + 出水管 + 把手
+  part(g, CYL(0.014, 0.016, 0.26, 12), MAT.metal, 0, 0.91, -0.19);
+  part(g, new THREE.SphereGeometry(0.016, 12, 10), MAT.metal, 0, 1.04, -0.19);
+  part(g, CYL(0.011, 0.011, 0.16, 10), MAT.metal, 0, 1.03, -0.11, Math.PI / 2 - 0.18);
+  part(g, CYL(0.006, 0.006, 0.07, 8), MAT.metal, 0.03, 1.06, -0.19, 0, 0, -0.5);
+  // 黄铜框镜
+  part(g, RB(0.94, 0.76, 0.025, 0.01), MAT.brass, 0, 1.55, -0.235);
+  part(g, B(0.88, 0.7, 0.012), MAT.mirror, 0, 1.55, -0.222);
   return g;
 }
 
@@ -878,7 +957,14 @@ export const CATALOG = [
   { id: 'plant', w: 0.6, d: 0.56, build: () => modelGroup('plant02', 0.6, 0.56) ?? plant() },
   { id: 'fridge', w: 0.7, d: 0.65, build: fridge },
   { id: 'counter', w: 1.8, d: 0.6, build: counter },
-  { id: 'toilet', w: 0.42, d: 0.7, build: toilet },
+  {
+    id: 'toilet',
+    variants: [
+      V('standard', 0.42, 0.7, toiletStandard),
+      V('smart', 0.42, 0.72, toiletSmart),
+      V('wall', 0.5, 0.62, toiletWall),
+    ],
+  },
   { id: 'washbasin', w: 1.0, d: 0.52, build: washbasin },
   { id: 'shower', w: 0.9, d: 0.9, build: shower },
 ];
