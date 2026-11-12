@@ -8,10 +8,11 @@ const STORAGE_KEY = 'hourse-style-v2';
 export const FLOOR_SIZES = {
   wood: [0.09, 0.12, 0.15, 0.18, 0.2],
   tile: [
-    { w: 0.3, d: 0.3 },
     { w: 0.4, d: 0.4 },
     { w: 0.6, d: 0.6 },
     { w: 0.8, d: 0.8 },
+    { w: 0.9, d: 0.9 },
+    { w: 1.0, d: 1.0 },
     { w: 0.6, d: 1.2 },
     { w: 0.75, d: 1.5 },
   ],
@@ -24,10 +25,10 @@ export const FLOOR_SIZES = {
 
 // 按空间给默认规格：卫生间/阳台用小规格防滑砖，厅厨走廊用常规砖
 const ROOM_FLOOR_SIZES = {
-  bath: { w: 0.3, d: 0.3 },
+  bath: { w: 0.4, d: 0.4 },
   corridor: { w: 0.6, d: 0.6 },
   kitchen: { w: 0.6, d: 0.6 },
-  balcony: { w: 0.3, d: 0.3 },
+  balcony: { w: 0.4, d: 0.4 },
   porch: { w: 0.8, d: 0.8 },
 };
 
@@ -83,6 +84,16 @@ function migrateRoomKeys(obj) {
   return out;
 }
 
+// 30x30 规格已下架：旧存档统一升到 40x40，避免尺寸下拉无对应项
+function migrateFloorSizes(base) {
+  for (const conf of [base.globalFloor, ...ROOMS.map((r) => base[r.id].floor)]) {
+    if (conf.kind === 'tile' && conf.w === 0.3 && conf.d === 0.3) {
+      conf.w = 0.4;
+      conf.d = 0.4;
+    }
+  }
+}
+
 function loadStyle() {
   const base = defaultStyle();
   try {
@@ -104,6 +115,7 @@ function loadStyle() {
   } catch {
     // 存储损坏时回落到默认样式
   }
+  migrateFloorSizes(base);
   return base;
 }
 
@@ -315,6 +327,7 @@ export function setStyleSnapshot(snapshot) {
       if (r.id === 'balcony' && typeof saved.door === 'boolean') base.balcony.door = saved.door;
     }
   }
+  migrateFloorSizes(base);
   style = base;
   persist();
   applyFloors();

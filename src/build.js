@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { WALL_H, WALLS, FLOORS, BAYS, CEILING_LIGHTS, PX_PER_M, mx, mz } from './plan.js';
+import { WALL_H, WALLS, FLOORS, BAYS, SHAFTS, CEILING_LIGHTS, PX_PER_M, BAY_TW, mx, mz } from './plan.js';
 import { createFloorMaterial, createWallMaterial, WALL_TEX_METERS, skyTexture } from './textures.js';
 
 RectAreaLightUniformsLib.init();
@@ -307,6 +307,20 @@ export function buildApartment(scene, envTexture) {
     },
   };
 
+  // ---------- 通风道 ----------
+
+  for (const s of SHAFTS) {
+    const x1 = mx(s.x1);
+    const x2 = mx(s.x2);
+    const z1 = mz(s.z1);
+    const z2 = mz(s.z2);
+    const mesh = box(x2 - x1, WALL_H, z2 - z1, wallMat, (x1 + x2) / 2, WALL_H / 2, (z1 + z2) / 2);
+    scaleWallUVs(mesh.geometry, x2 - x1, WALL_H, z2 - z1);
+    mesh.userData.wallSides = { plus: s.room, minus: s.room };
+    wallMeshes.push(mesh);
+    addCollider(x1, x2, z1, z2);
+  }
+
   // ---------- 窗 ----------
 
   function addWindow(o, w, op) {
@@ -554,6 +568,7 @@ export function buildApartment(scene, envTexture) {
 
   // ---------- 飘窗 ----------
 
+  const pierDone = new Set();
   for (const bay of BAYS) {
     addBay(bay);
   }
@@ -577,28 +592,42 @@ export function buildApartment(scene, envTexture) {
       const z1 = mz(bay.z1);
       const midZ = (z0 + z1) / 2;
       const span = z1 - z0;
-
-      // 台面 / 顶板
-      box(depth + 0.15, 0.08, span, doorFrameMat, (outerX + bayOuter) / 2 + 0.05, bay.sill - 0.04, midZ);
-      box(depth + 0.15, 0.08, span, ceilMat, (outerX + bayOuter) / 2 + 0.05, bay.top + 0.04, midZ);
-
-      // 外侧玻璃与框
-      const gx = bayOuter + 0.035;
-      box(0.016, h - 0.1, span - 0.1, glassMat, gx, yMid, midZ, { cast: false, receive: false });
-      box(fw, 0.06, span, frameMat, gx, bay.sill + 0.03, midZ);
-      box(fw, 0.06, span, frameMat, gx, bay.top - 0.03, midZ);
-      for (const zc of [z0 + 0.035, midZ, z1 - 0.035]) box(fw, h, 0.06, frameMat, gx, yMid, zc);
-
-      // 外两侧实墙墙垛（户型图）：洞口边到外边界、对齐相邻墙线，
-      // 内端埋入房屋墙 5cm，外端收在正面框后 2mm，口字形闭合
       const zo0 = mz(bay.zo0);
       const zo1 = mz(bay.zo1);
+      const mouth = zo1 - zo0;
+      const mouthMid = (zo0 + zo1) / 2;
+      const tw = BAY_TW / PX_PER_M;
+
+      // 台面 / 顶板（顶板盖住整个口，含机位；顶部与房屋顶齐平）
+      box(depth + 0.15, 0.08, span, doorFrameMat, (outerX + bayOuter) / 2 + 0.05, bay.sill - 0.04, midZ);
+      box(depth + 0.15, 0.08, mouth, ceilMat, (outerX + bayOuter) / 2 + 0.05, WALL_H - 0.04, mouthMid);
+
+      // 外侧玻璃与框：玻璃两端插进薄虚墙中心线
+      const gx = bayOuter + 0.035;
+      const gSpan = span + tw;
+      box(0.016, h - 0.1, gSpan - 0.1, glassMat, gx, yMid, midZ, { cast: false, receive: false });
+      box(fw, 0.06, gSpan, frameMat, gx, bay.sill + 0.03, midZ);
+      box(fw, 0.06, gSpan, frameMat, gx, bay.top - 0.03, midZ);
+      for (const zc of [z0 + 0.035, midZ, z1 - 0.035]) box(fw, h, 0.06, frameMat, gx, yMid, zc);
+
+      // 两侧薄虚墙＋空心机位（户型图）：区间两端各一道薄墙，
+      // 机位正面薄板与窗框齐平；薄墙内端埋入房屋墙 5cm
       const px0 = bayOuter + 0.007;
       const px1 = outerX + 0.05;
-      for (const [za, zb] of [[zo0, z0], [z1, zo1]]) {
-        const pier = box(px1 - px0, bay.top, zb - za, wallMat, (px0 + px1) / 2, bay.top / 2, (za + zb) / 2);
-        scaleWallUVs(pier.geometry, px1 - px0, bay.top, zb - za);
+      const key = `west|${zo0.toFixed(3)}|${zo1.toFixed(3)}`;
+      if (!pierDone.has(key)) {
+        pierDone.add(key);
+        for (const [za, zb] of [[zo0, zo0 + tw], [zo1 - tw, zo1]]) {
+          const fin = box(px1 - px0, WALL_H, zb - za, wallMat, (px0 + px1) / 2, WALL_H / 2, (za + zb) / 2);
+          scaleWallUVs(fin.geometry, px1 - px0, WALL_H, zb - za);
+        }
+        for (const [za, zb] of [[zo0 + tw, z0 - tw / 2], [z1 + tw / 2, zo1 - tw]]) {
+          const panel = box(tw, WALL_H, zb - za, wallMat, px0 + tw / 2, WALL_H / 2, (za + zb) / 2);
+          scaleWallUVs(panel.geometry, tw, WALL_H, zb - za);
+        }
       }
+      // 玻璃上端到凸盒顶的正面封板
+      box(tw, WALL_H - bay.top, gSpan, wallMat, px0 + tw / 2, (bay.top + WALL_H) / 2, midZ);
     } else {
       const c = mz(wall.at);
       const outerZ = c + t / 2;
@@ -607,24 +636,38 @@ export function buildApartment(scene, envTexture) {
       const x1 = mx(bay.x1);
       const midX = (x0 + x1) / 2;
       const span = x1 - x0;
-
-      box(span, 0.08, depth + 0.15, doorFrameMat, midX, bay.sill - 0.04, (outerZ + bayOuter) / 2 + 0.05);
-      box(span, 0.08, depth + 0.15, ceilMat, midX, bay.top + 0.04, (outerZ + bayOuter) / 2 + 0.05);
-
-      const gz = bayOuter - 0.035;
-      box(span - 0.1, h - 0.1, 0.016, glassMat, midX, yMid, gz, { cast: false, receive: false });
-      box(span, 0.06, fw, frameMat, midX, bay.sill + 0.03, gz);
-      box(span, 0.06, fw, frameMat, midX, bay.top - 0.03, gz);
-      for (const xc of [x0 + 0.035, midX, x1 - 0.035]) box(0.06, h, fw, frameMat, xc, yMid, gz);
-
       const xo0 = mx(bay.xo0);
       const xo1 = mx(bay.xo1);
+      const mouth = xo1 - xo0;
+      const mouthMid = (xo0 + xo1) / 2;
+      const tw = BAY_TW / PX_PER_M;
+
+      box(span, 0.08, depth + 0.15, doorFrameMat, midX, bay.sill - 0.04, (outerZ + bayOuter) / 2 + 0.05);
+      box(mouth, 0.08, depth + 0.15, ceilMat, mouthMid, WALL_H - 0.04, (outerZ + bayOuter) / 2 + 0.05);
+
+      const gz = bayOuter - 0.035;
+      const gSpan = span + tw;
+      box(gSpan - 0.1, h - 0.1, 0.016, glassMat, midX, yMid, gz, { cast: false, receive: false });
+      box(gSpan, 0.06, fw, frameMat, midX, bay.sill + 0.03, gz);
+      box(gSpan, 0.06, fw, frameMat, midX, bay.top - 0.03, gz);
+      for (const xc of [x0 + 0.035, midX, x1 - 0.035]) box(0.06, h, fw, frameMat, xc, yMid, gz);
+
       const pz0 = outerZ - 0.05;
       const pz1 = bayOuter - 0.007;
-      for (const [xa, xb] of [[xo0, x0], [x1, xo1]]) {
-        const pier = box(xb - xa, bay.top, pz1 - pz0, wallMat, (xa + xb) / 2, bay.top / 2, (pz0 + pz1) / 2);
-        scaleWallUVs(pier.geometry, xb - xa, bay.top, pz1 - pz0);
+      const key = `south|${xo0.toFixed(3)}|${xo1.toFixed(3)}`;
+      if (!pierDone.has(key)) {
+        pierDone.add(key);
+        for (const [xa, xb] of [[xo0, xo0 + tw], [xo1 - tw, xo1]]) {
+          const fin = box(xb - xa, WALL_H, pz1 - pz0, wallMat, (xa + xb) / 2, WALL_H / 2, (pz0 + pz1) / 2);
+          scaleWallUVs(fin.geometry, xb - xa, WALL_H, pz1 - pz0);
+        }
+        for (const [xa, xb] of [[xo0 + tw, x0 - tw / 2], [x1 + tw / 2, xo1 - tw]]) {
+          const panel = box(xb - xa, WALL_H, tw, wallMat, (xa + xb) / 2, WALL_H / 2, pz1 - tw / 2);
+          scaleWallUVs(panel.geometry, xb - xa, WALL_H, tw);
+        }
       }
+      // 玻璃上端到凸盒顶的正面封板
+      box(gSpan, WALL_H - bay.top, tw, wallMat, midX, (bay.top + WALL_H) / 2, pz1 - tw / 2);
     }
   }
 
@@ -652,6 +695,9 @@ export function buildApartment(scene, envTexture) {
   function addBalconyEnclosure(eastX, eastT) {
     const x0 = mx(1318);
     const x1 = eastX - eastT / 2;
+    // 户型图：围护窗 1382–2005，两侧留实墙边（不通边）
+    const wx0 = mx(1382);
+    const wx1 = mx(2005);
     const z0 = mz(2157);
     const zEnd = mz(2470);
     const southT = 0.12;
@@ -664,22 +710,28 @@ export function buildApartment(scene, envTexture) {
     scaleWallUVs(east.geometry, eastT, WALL_H, zEnd - z0);
     addCollider(eastX - eastT / 2, eastX + eastT / 2, z0, zEnd);
 
-    const southSpan = x1 - x0;
-    const southMid = (x0 + x1) / 2;
+    // 南面两侧实墙边
+    for (const [a, b] of [[x0, wx0], [wx1, x1]]) {
+      const margin = box(b - a, WALL_H, southT, wallMat, (a + b) / 2, WALL_H / 2, southZ);
+      scaleWallUVs(margin.geometry, b - a, WALL_H, southT);
+    }
+
+    const southSpan = wx1 - wx0;
+    const southMid = (wx0 + wx1) / 2;
 
     // 南侧正面矮墙
     const south = box(southSpan, parapetH, southT, wallMat, southMid, parapetH / 2, southZ, { parent: balconySolid });
     scaleWallUVs(south.geometry, southSpan, parapetH, southT);
     addCollider(x0, x1, southZ - southT / 2, southZ + southT / 2);
 
-    addFrontGlazing(balconySolid, x0, x1, southZ, parapetH, top, true);
-    addFrontGlazing(balconyGlass, x0, x1, southZ, 0.08, top, false);
+    addFrontGlazing(balconySolid, wx0, wx1, southZ, parapetH, top, true);
+    addFrontGlazing(balconyGlass, wx0, wx1, southZ, 0.08, top, false);
 
     // 阳台正面整幅玻璃的入室天光
     addDaylightLight(
-      (x0 + x1) / 2, 2.2, southZ - 0.09,
-      (x0 + x1) / 2, southZ - 1.2,
-      x1 - x0, 1.2,
+      (wx0 + wx1) / 2, 2.2, southZ - 0.09,
+      (wx0 + wx1) / 2, southZ - 1.2,
+      wx1 - wx0, 1.2,
     );
 
     function addFrontGlazing(parent, gx0, gx1, z, base, glassTop, transom) {

@@ -165,11 +165,18 @@ export const FLOORS = [
   { x1: 1781, z1: 662, x2: 1963, z2: 690, mat: 'wood', room: 'entry' },
 ];
 
-// 飘窗：side 为外凸方向；zo/xo 为两侧墙垛外边界（对齐相邻墙线，见户型图）
+// 飘窗：side 为外凸方向；zo/xo 为两侧区间外边界（对齐相邻墙线，见户型图）
+// 侧区间为薄虚墙＋空心空调机位：区间两端各一道 BAY_TW 薄墙，机位正面薄板与玻璃齐平
+export const BAY_TW = 18;
 export const BAYS = [
-  { side: 'west', z0: 922, z1: 1188, zo0: 813, zo1: 1297, sill: 0.5, top: 2.2, depth: 115 },
-  { side: 'west', z0: 1442, z1: 1708, zo0: 1297, zo1: 1835, sill: 0.5, top: 2.2, depth: 115 },
-  { side: 'south', x0: 799, x1: 1119, xo0: 601, xo1: 1318, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'west', z0: 922, z1: 1188, zo0: 794, zo1: 1442, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'west', z0: 1442, z1: 1708, zo0: 1188, zo1: 1853, sill: 0.5, top: 2.2, depth: 115 },
+  { side: 'south', x0: 799, x1: 1119, xo0: 601, xo1: 1390, sill: 0.5, top: 2.2, depth: 115 },
+];
+
+// 通风道：户型图像素矩形，落地到顶的柱体（厨房东北角贴内墙角）
+export const SHAFTS = [
+  { x1: 1655, z1: 503, x2: 1727, z2: 593, room: 'kitchen' },
 ];
 
 // 吸顶灯位置（世界坐标，米）

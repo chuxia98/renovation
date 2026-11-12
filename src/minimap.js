@@ -1,5 +1,5 @@
 import {
-  WALLS, FLOORS, BAYS, PX_PER_M, mx, mz,
+  WALLS, FLOORS, BAYS, SHAFTS, PX_PER_M, BAY_TW, mx, mz,
 } from './plan.js';
 import { catalogItem } from './furniture.js';
 
@@ -8,7 +8,9 @@ const CSS_W = 148;
 
 const FLOOR_COLORS = { wood: '#a17b56', tile: '#9aa09a', stone: '#8d938f' };
 
+// 飘窗按户型图：窗洞区铺地、两侧薄虚墙、机位正面薄板（空心不填）
 const BAY_RECTS = [];
+const BAY_PARTS = [];
 for (const b of BAYS) {
   const depth = b.depth / PX_PER_M;
   const w = WALLS.find((wall) => (wall.openings || []).some(
@@ -16,15 +18,32 @@ for (const b of BAYS) {
   ));
   if (!w) continue;
   const half = w.t / 2 / PX_PER_M;
+  const tw = BAY_TW / PX_PER_M;
   if (b.side === 'west') {
-    BAY_RECTS.push({
-      minX: mx(w.at) - half - depth, maxX: mx(w.at) + half,
-      minZ: mz(b.z0), maxZ: mz(b.z1),
+    const minX = mx(w.at) - half - depth;
+    const maxX = mx(w.at) + half;
+    const minZ = mz(b.zo0);
+    const maxZ = mz(b.zo1);
+    BAY_RECTS.push({ minX, maxX, minZ, maxZ });
+    BAY_PARTS.push({
+      west: true, minX, maxX,
+      fill: [mz(b.z0), mz(b.z1)],
+      fins: [[minZ, minZ + tw], [maxZ - tw, maxZ]],
+      panelX: [minX, minX + tw],
+      panelZ: [minZ + tw, maxZ - tw],
     });
   } else {
-    BAY_RECTS.push({
-      minX: mx(b.x0), maxX: mx(b.x1),
-      minZ: mz(w.at) - half, maxZ: mz(w.at) + half + depth,
+    const minX = mx(b.xo0);
+    const maxX = mx(b.xo1);
+    const minZ = mz(w.at) - half;
+    const maxZ = mz(w.at) + half + depth;
+    BAY_RECTS.push({ minX, maxX, minZ, maxZ });
+    BAY_PARTS.push({
+      west: false, minZ, maxZ,
+      fill: [mx(b.x0), mx(b.x1)],
+      fins: [[minX, minX + tw], [maxX - tw, maxX]],
+      panelX: [minX + tw, maxX - tw],
+      panelZ: [maxZ - tw, maxZ],
     });
   }
 }
@@ -110,10 +129,21 @@ export function createMinimap(canvas, getState) {
       ctx.fillStyle = FLOOR_COLORS[f.mat] || FLOOR_COLORS.wood;
       ctx.fill();
     }
-    for (const r of BAY_RECTS) {
+    for (const p of BAY_PARTS) {
       ctx.beginPath();
-      rect(r.minX, r.maxX, r.minZ, r.maxZ);
+      if (p.west) rect(p.minX, p.maxX, p.fill[0], p.fill[1]);
+      else rect(p.fill[0], p.fill[1], p.minZ, p.maxZ);
       ctx.fillStyle = FLOOR_COLORS.wood;
+      ctx.fill();
+      ctx.fillStyle = '#ece5d7';
+      for (const [a, b] of p.fins) {
+        ctx.beginPath();
+        if (p.west) rect(p.minX, p.maxX, a, b);
+        else rect(a, b, p.minZ, p.maxZ);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      rect(p.panelX[0], p.panelX[1], p.panelZ[0], p.panelZ[1]);
       ctx.fill();
     }
 
@@ -134,12 +164,24 @@ export function createMinimap(canvas, getState) {
       }
     }
 
-    // 阳台栏板（南、东两侧）
+    for (const s of SHAFTS) {
+      ctx.beginPath();
+      rect(mx(s.x1), mx(s.x2), mz(s.z1), mz(s.z2));
+      ctx.fillStyle = '#ece5d7';
+      ctx.fill();
+    }
+
+    // 阳台栏板（南窗 1382–2005 + 两侧实墙边、东侧）
+    ctx.fillStyle = '#ece5d7';
+    ctx.beginPath();
+    rect(mx(1318), mx(1382), mz(2470) - 0.12, mz(2470));
+    rect(mx(2005), mx(2016), mz(2470) - 0.12, mz(2470));
+    ctx.fill();
     ctx.strokeStyle = 'rgba(158, 196, 201, 0.85)';
     ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(X(mx(1318)), Z(mz(2470) - 0.03));
-    ctx.lineTo(X(mx(2034)), Z(mz(2470) - 0.03));
+    ctx.moveTo(X(mx(1382)), Z(mz(2470) - 0.03));
+    ctx.lineTo(X(mx(2005)), Z(mz(2470) - 0.03));
     ctx.moveTo(X(mx(2034) - 0.03), Z(mz(2157)));
     ctx.lineTo(X(mx(2034) - 0.03), Z(mz(2470)));
     ctx.stroke();
@@ -240,10 +282,21 @@ export function createRadar(canvas, getState) {
       ctx.fillStyle = FLOOR_COLORS[f.mat] || FLOOR_COLORS.wood;
       ctx.fill();
     }
-    for (const r of BAY_RECTS) {
+    for (const p of BAY_PARTS) {
       ctx.beginPath();
-      ctx.rect(r.minX, r.minZ, r.maxX - r.minX, r.maxZ - r.minZ);
+      if (p.west) ctx.rect(p.minX, p.fill[0], p.maxX - p.minX, p.fill[1] - p.fill[0]);
+      else ctx.rect(p.fill[0], p.minZ, p.fill[1] - p.fill[0], p.maxZ - p.minZ);
       ctx.fillStyle = FLOOR_COLORS.wood;
+      ctx.fill();
+      ctx.fillStyle = '#ece5d7';
+      for (const [a, b] of p.fins) {
+        ctx.beginPath();
+        if (p.west) ctx.rect(p.minX, a, p.maxX - p.minX, b - a);
+        else ctx.rect(a, p.minZ, b - a, p.maxZ - p.minZ);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.rect(p.panelX[0], p.panelZ[0], p.panelX[1] - p.panelX[0], p.panelZ[1] - p.panelZ[0]);
       ctx.fill();
     }
 
@@ -278,12 +331,24 @@ export function createRadar(canvas, getState) {
       }
     }
 
-    // 阳台栏板（南、东两侧）
+    for (const s of SHAFTS) {
+      ctx.beginPath();
+      ctx.rect(mx(s.x1), mz(s.z1), mx(s.x2) - mx(s.x1), mz(s.z2) - mz(s.z1));
+      ctx.fillStyle = '#ece5d7';
+      ctx.fill();
+    }
+
+    // 阳台栏板（南窗 1382–2005 + 两侧实墙边、东侧）
+    ctx.fillStyle = '#ece5d7';
+    ctx.beginPath();
+    ctx.rect(mx(1318), mz(2470) - 0.12, mx(1382) - mx(1318), 0.12);
+    ctx.rect(mx(2005), mz(2470) - 0.12, mx(2016) - mx(2005), 0.12);
+    ctx.fill();
     ctx.strokeStyle = 'rgba(158, 196, 201, 0.85)';
     ctx.lineWidth = Math.max(1 / scale, 0.08);
     ctx.beginPath();
-    ctx.moveTo(mx(1318), mz(2470) - 0.03);
-    ctx.lineTo(mx(2034), mz(2470) - 0.03);
+    ctx.moveTo(mx(1382), mz(2470) - 0.03);
+    ctx.lineTo(mx(2005), mz(2470) - 0.03);
     ctx.moveTo(mx(2034) - 0.03, mz(2157));
     ctx.lineTo(mx(2034) - 0.03, mz(2470));
     ctx.stroke();
