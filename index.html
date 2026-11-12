@@ -73,6 +73,7 @@
       <div id="variant-bar" class="hidden">
         <span id="variant-title" class="head-title"></span>
         <div id="variant-options"></div>
+        <button id="variant-delete" class="hidden" type="button" data-i18n="build.deleteItem">Delete</button>
         <button id="variant-done" class="hidden" type="button" data-i18n="build.variantDone">Done</button>
       </div>
       <div id="style-panel" class="hidden">
@@ -114,7 +115,7 @@
           <select id="style-room"></select>
         </div>
         <div class="style-section">
-          <div class="style-section-head" data-i18n="style.floor">Floor</div>
+          <div class="style-section-head" id="style-floor-head" data-i18n="style.floor">Floor</div>
           <div class="seg" id="style-floor-kind">
             <button type="button" data-kind="wood" data-i18n="style.kind.wood">Wood</button>
             <button type="button" data-kind="tile" data-i18n="style.kind.tile">Tile</button>
@@ -149,6 +150,11 @@
           <div class="seg" id="style-balcony-mode">
             <button type="button" data-mode="solid" data-i18n="style.balcony.solid">Solid wall 1.3 m</button>
             <button type="button" data-mode="glass" data-i18n="style.balcony.glass">Floor-to-ceiling glass</button>
+          </div>
+          <div class="style-section-head" data-i18n="style.balcony.door">Sliding door</div>
+          <div class="seg" id="style-balcony-door">
+            <button type="button" data-door="yes" data-i18n="style.balcony.door.yes">With door</button>
+            <button type="button" data-door="no" data-i18n="style.balcony.door.no">Open passage</button>
           </div>
         </div>
       </div>

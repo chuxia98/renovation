@@ -21,6 +21,7 @@ export function buildApartment(scene, envTexture) {
   const floorMeshes = [];
   const wallMeshes = [];
   const nicheMeshes = [];
+  const sliders = [];
   const interactions = [];
   const daylightLights = [];
 
@@ -153,8 +154,8 @@ export function buildApartment(scene, envTexture) {
     mesh.userData.floorRect = { x1, z1, x2, z2 };
     floorMeshes.push(mesh);
 
-    // 顶棚
-    box(w, 0.1, d, ceilMat, (x1 + x2) / 2, WALL_H + 0.04, (z1 + z2) / 2, { cast: false });
+    // 顶棚参与阴影，挡住直射阳光，室内只留窗洞光斑与灯光
+    box(w, 0.1, d, ceilMat, (x1 + x2) / 2, WALL_H + 0.04, (z1 + z2) / 2);
   }
 
   // ---------- 墙体 ----------
@@ -240,6 +241,13 @@ export function buildApartment(scene, envTexture) {
         scaleWallUVs(mesh.geometry, sx, h, sz);
         mesh.position.y = h / 2;
       }
+    },
+  };
+
+  // 阳台推拉门：可整体拆除留门洞，拆除后隐藏几何并放开碰撞与交互
+  const balconyDoor = {
+    setPresent(present) {
+      for (const s of sliders) s.setPresent(present);
     },
   };
 
@@ -388,9 +396,11 @@ export function buildApartment(scene, envTexture) {
     const panelW = span / 2;
     const yMid = h / 2;
 
+    const group = new THREE.Group();
+    root.add(group);
     const bar = (ac, len, y, hh) => {
-      if (o === 'v') box(depth, hh, len, frameMat, c, y, ac);
-      else box(len, hh, depth, frameMat, ac, y, c);
+      if (o === 'v') box(depth, hh, len, frameMat, c, y, ac, { parent: group });
+      else box(len, hh, depth, frameMat, ac, y, c, { parent: group });
     };
     bar(mid, span, 0.03, 0.06);
     bar(mid, span, h - 0.03, 0.06);
@@ -402,7 +412,7 @@ export function buildApartment(scene, envTexture) {
       const ac = op.a0 + panelW * (i + 0.5);
       const pc = c + (i === 0 ? -1 : 1) * 0.03;
       const panel = new THREE.Group();
-      root.add(panel);
+      group.add(panel);
       panels.push(panel);
 
       const frame = (a, y, hh, len) => {
@@ -445,6 +455,7 @@ export function buildApartment(scene, envTexture) {
     const record = {
       kind: 'slider',
       open: false,
+      enabled: true,
       roots: panels,
       toggle() {
         record.open = !record.open;
@@ -462,6 +473,20 @@ export function buildApartment(scene, envTexture) {
     };
     for (const panel of panels) panel.userData.interact = record;
     interactions.push(record);
+
+    sliders.push({
+      setPresent(present) {
+        group.visible = present;
+        collider.enabled = present;
+        record.enabled = present;
+        if (!present) {
+          record.open = false;
+          target = 0;
+          progress = 0;
+          applyProgress(0);
+        }
+      },
+    });
   }
 
   // ---------- 飘窗 ----------
@@ -760,7 +785,7 @@ export function buildApartment(scene, envTexture) {
   }
 
   return {
-    root, colliders, floorMeshes, wallMeshes, interactions, balcony, nicheWall, updateInteractions,
+    root, colliders, floorMeshes, wallMeshes, interactions, balcony, balconyDoor, nicheWall, updateInteractions,
     glossyMaterials, daylightLights,
   };
 }

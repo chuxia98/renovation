@@ -650,6 +650,24 @@ body.build #crosshair {
   filter: brightness(1.08);
 }
 
+#variant-delete {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 107, 107, 0.55);
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.14);
+  color: #ff9b9b;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+#variant-delete:hover {
+  background: rgba(255, 107, 107, 0.26);
+}
+
 /* ---------- Scheme panel ---------- */
 
 #scheme-panel {
@@ -764,6 +782,13 @@ body.build #crosshair {
   background: rgba(18, 20, 24, 0.92);
   backdrop-filter: blur(18px) saturate(1.2);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.15s ease;
+}
+
+/* 拖动滑杆预览时半透明并去掉磨砂，露出背后 3D 效果；松手恢复 */
+#style-panel.drag-preview {
+  opacity: 0.3;
+  backdrop-filter: none;
 }
 
 .style-section {
@@ -991,6 +1016,12 @@ body.touch #btn-rotate {
 
 body.touch #app canvas {
   touch-action: none;
+}
+
+/* iOS 对字号小于 16px 的输入框聚焦时会自动放大页面 */
+body.touch .scheme-save input {
+  font-size: 16px;
+  user-select: text;
 }
 
 body.touch,

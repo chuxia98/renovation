@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BALCONY_MODES, FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES, defaultStyle, getRoomStyle,
   getStyleSnapshot, setStyleSnapshot, updateRoom, getFloorLay, setFloorLay,
+  getGlobalFloor, setGlobalFloor,
 } from '../src/style.js';
 import { FLOOR_DEFAULTS, WALL_DEFAULT } from '../src/textures.js';
 import { ROOMS } from '../src/plan.js';
@@ -159,5 +160,57 @@ describe('旧版房间 id 迁移', () => {
     setStyleSnapshot({ master: { floor: { color: '#abcdef' } } });
     expect(getRoomStyle('master').floor.color).toBe('#abcdef');
     expect(getRoomStyle('bedUpper').floor.color).not.toBe('#abcdef');
+  });
+});
+
+describe('通铺整屋地板', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setStyleSnapshot(null);
+  });
+
+  it('默认整屋地板为合法瓷砖配置', () => {
+    const g = defaultStyle().globalFloor;
+    expect(g.kind).toBe('tile');
+    expect(FLOOR_SIZES.tile).toContainEqual({ w: g.w, d: g.d });
+    expect(g.color).toMatch(HEX);
+  });
+
+  it('整屋地板独立于各房间且随快照往返', () => {
+    const livingBefore = getRoomStyle('living').floor;
+    setGlobalFloor({ kind: 'stone', color: '#123456', w: 1.0, d: 1.0 });
+    expect(getGlobalFloor()).toEqual({ kind: 'stone', color: '#123456', w: 1.0, d: 1.0 });
+    expect(getRoomStyle('living').floor).toEqual(livingBefore);
+
+    const snap = getStyleSnapshot();
+    setStyleSnapshot(null);
+    expect(getGlobalFloor().kind).toBe('tile');
+    setStyleSnapshot(snap);
+    expect(getGlobalFloor()).toEqual({ kind: 'stone', color: '#123456', w: 1.0, d: 1.0 });
+  });
+
+  it('换整屋地板类型整组替换不残留旧规格', () => {
+    setGlobalFloor({ kind: 'wood', ...FLOOR_DEFAULTS.wood });
+    expect(getGlobalFloor().w).toBeUndefined();
+    expect(getGlobalFloor().size).toBe(FLOOR_DEFAULTS.wood.size);
+  });
+});
+
+describe('阳台推拉门开关', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setStyleSnapshot(null);
+  });
+
+  it('默认保留推拉门且可拆除并随快照往返', () => {
+    expect(defaultStyle().balcony.door).toBe(true);
+    updateRoom('balcony', { door: false });
+    expect(getRoomStyle('balcony').door).toBe(false);
+    expect(getStyleSnapshot().balcony.door).toBe(false);
+    setStyleSnapshot(null);
+    expect(getRoomStyle('balcony').door).toBe(true);
+    updateRoom('balcony', { door: false });
+    setStyleSnapshot(getStyleSnapshot());
+    expect(getRoomStyle('balcony').door).toBe(false);
   });
 });

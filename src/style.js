@@ -48,13 +48,18 @@ function defaultRoomStyle(roomId) {
     floor: { kind, ...FLOOR_DEFAULTS[kind], ...(ROOM_FLOOR_SIZES[roomId] || {}) },
     wall: { ...WALL_DEFAULT },
   };
-  if (roomId === 'balcony') style.enclosure = 'solid';
+  if (roomId === 'balcony') {
+    style.enclosure = 'solid';
+    style.door = true;
+  }
   return style;
 }
 
 export function defaultStyle() {
   const style = {
     floorLay: { mode: 'room', offsetX: 0, offsetZ: 0 },
+    // 通铺时整屋共用这一份地板配置，不再按房间区分
+    globalFloor: { kind: 'tile', ...FLOOR_DEFAULTS.tile },
     nicheWall: { semi: true, height: 1.3 },
   };
   for (const r of ROOMS) style[r.id] = defaultRoomStyle(r.id);
@@ -82,6 +87,7 @@ function loadStyle() {
     const raw = migrateRoomKeys(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
     if (!raw || typeof raw !== 'object') return base;
     if (raw.floorLay) base.floorLay = { ...base.floorLay, ...raw.floorLay };
+    if (raw.globalFloor) base.globalFloor = { ...base.globalFloor, ...raw.globalFloor };
     if (raw.nicheWall) base.nicheWall = { ...base.nicheWall, ...raw.nicheWall };
     for (const r of ROOMS) {
       const saved = raw[r.id];
@@ -89,6 +95,7 @@ function loadStyle() {
       if (saved.floor) base[r.id].floor = { ...base[r.id].floor, ...saved.floor };
       if (saved.wall) base[r.id].wall = { ...base[r.id].wall, ...saved.wall };
       if (saved.enclosure) base[r.id].enclosure = saved.enclosure;
+      if (r.id === 'balcony' && typeof saved.door === 'boolean') base.balcony.door = saved.door;
     }
   } catch {
     // 存储损坏时回落到默认样式
@@ -100,6 +107,7 @@ let style = loadStyle();
 let floors = [];
 let walls = [];
 let balcony = null;
+let balconyDoor = null;
 let niche = null;
 let neutralWallMat = null;
 const wallMatCache = new Map();
@@ -135,11 +143,12 @@ function disposeFloorMaterial(mat) {
 
 function applyFloorMesh(mesh) {
   const roomId = mesh.userData.roomId;
-  const conf = style[roomId].floor;
+  const lay = style.floorLay;
+  // 通铺整屋共用 globalFloor；分房才读各房间配置
+  const conf = lay.mode === 'continuous' ? style.globalFloor : style[roomId].floor;
   const { w, d } = mesh.userData.floorSize;
   disposeFloorMaterial(mesh.material);
   const mat = createFloorMaterial(conf.kind, w, d, conf);
-  const lay = style.floorLay;
   if (lay.mode === 'continuous') {
     // 通铺：把贴图相位锚到世界原点 + 用户偏移，跨房间对齐
     // 顶面 UV：u 随世界 X 增大，v 随世界 Z 减小
@@ -173,14 +182,16 @@ function applyWalls() {
   for (const mesh of walls) applyWallMesh(mesh);
 }
 
-export function bindApartment({ floorMeshes, wallMeshes, balcony: balconyController, nicheWall: nicheController }) {
+export function bindApartment({ floorMeshes, wallMeshes, balcony: balconyController, balconyDoor: balconyDoorController, nicheWall: nicheController }) {
   floors = floorMeshes;
   walls = wallMeshes;
   balcony = balconyController;
+  balconyDoor = balconyDoorController;
   niche = nicheController;
   applyFloors();
   applyWalls();
   balcony?.setMode(style.balcony.enclosure);
+  balconyDoor?.setPresent(style.balcony.door);
   niche?.set(style.nicheWall);
 }
 
@@ -194,6 +205,17 @@ export function getRoomStyle(roomId) {
 
 export function getFloorLay() {
   return style.floorLay;
+}
+
+export function getGlobalFloor() {
+  return style.globalFloor;
+}
+
+export function setGlobalFloor(patch) {
+  const changingKind = patch.kind && patch.kind !== style.globalFloor.kind;
+  style.globalFloor = changingKind ? { ...patch } : { ...style.globalFloor, ...patch };
+  persist();
+  applyFloors();
 }
 
 export function getNicheWall() {
@@ -231,6 +253,10 @@ export function updateRoom(roomId, patch) {
     room.enclosure = patch.enclosure;
     if (roomId === 'balcony') balcony?.setMode(room.enclosure);
   }
+  if (typeof patch.door === 'boolean') {
+    room.door = patch.door;
+    if (roomId === 'balcony') balconyDoor?.setPresent(room.door);
+  }
   persist();
 }
 
@@ -243,6 +269,7 @@ export function setStyleSnapshot(snapshot) {
   const snap = migrateRoomKeys(snapshot);
   if (snap && typeof snap === 'object') {
     if (snap.floorLay) base.floorLay = { ...base.floorLay, ...snap.floorLay };
+    if (snap.globalFloor) base.globalFloor = { ...base.globalFloor, ...snap.globalFloor };
     if (snap.nicheWall) base.nicheWall = { ...base.nicheWall, ...snap.nicheWall };
     for (const r of ROOMS) {
       const saved = snap[r.id];
@@ -250,6 +277,7 @@ export function setStyleSnapshot(snapshot) {
       if (saved.floor) base[r.id].floor = { ...base[r.id].floor, ...saved.floor };
       if (saved.wall) base[r.id].wall = { ...base[r.id].wall, ...saved.wall };
       if (saved.enclosure) base[r.id].enclosure = saved.enclosure;
+      if (r.id === 'balcony' && typeof saved.door === 'boolean') base.balcony.door = saved.door;
     }
   }
   style = base;
@@ -257,5 +285,6 @@ export function setStyleSnapshot(snapshot) {
   applyFloors();
   applyWalls();
   balcony?.setMode(style.balcony.enclosure);
+  balconyDoor?.setPresent(style.balcony.door);
   niche?.set(style.nicheWall);
 }
