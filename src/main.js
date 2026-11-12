@@ -11,6 +11,7 @@ import { createMinimap, createRadar } from './minimap.js';
 import { t, getLang, setLang, applyStatic, initLang, onLangChange } from './i18n.js';
 import {
   bindApartment, updateRoom, getRoomStyle, getStyleSnapshot, setStyleSnapshot,
+  getFloorLay, setFloorLay,
   FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES,
 } from './style.js';
 import { FLOOR_DEFAULTS, setSkyTexture } from './textures.js';
@@ -444,6 +445,13 @@ const wallSwatchesEl = document.getElementById('style-wall-swatches');
 const wallColorEl = document.getElementById('style-wall-color');
 const balconyModeEl = document.getElementById('style-balcony-mode');
 const balconyRowEl = document.getElementById('style-balcony-row');
+const floorLayEl = document.getElementById('style-floor-lay');
+const layXEl = document.getElementById('style-lay-offset-x');
+const layXRow = document.getElementById('style-lay-offset-x-row');
+const layXVal = document.getElementById('style-lay-offset-x-val');
+const layZEl = document.getElementById('style-lay-offset-z');
+const layZRow = document.getElementById('style-lay-offset-z-row');
+const layZVal = document.getElementById('style-lay-offset-z-val');
 
 let styleRoom = ROOMS[0].id;
 
@@ -484,9 +492,22 @@ function renderFloorSizes(kind, conf) {
   floorSizeEl.value = kind === 'wood' ? String(conf.size) : `${conf.w}x${conf.d}`;
 }
 
+function renderFloorLay() {
+  const lay = getFloorLay();
+  for (const btn of floorLayEl.children) btn.classList.toggle('active', btn.dataset.lay === lay.mode);
+  const continuous = lay.mode === 'continuous';
+  layXRow.classList.toggle('hidden', !continuous);
+  layZRow.classList.toggle('hidden', !continuous);
+  layXEl.value = String(lay.offsetX);
+  layZEl.value = String(lay.offsetZ);
+  layXVal.textContent = `${lay.offsetX.toFixed(2)} m`;
+  layZVal.textContent = `${lay.offsetZ.toFixed(2)} m`;
+}
+
 function renderStyleControls() {
   const conf = getRoomStyle(styleRoom);
   styleRoomEl.value = styleRoom;
+  renderFloorLay();
 
   for (const btn of floorKindEl.children) btn.classList.toggle('active', btn.dataset.kind === conf.floor.kind);
   renderSwatches(floorSwatchesEl, FLOOR_SWATCHES[conf.floor.kind], conf.floor.color, (color) => {
@@ -555,6 +576,25 @@ balconyModeEl.addEventListener('click', (e) => {
   if (!btn || getRoomStyle('balcony').enclosure === btn.dataset.mode) return;
   updateRoom('balcony', { enclosure: btn.dataset.mode });
   renderStyleControls();
+});
+
+floorLayEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || getFloorLay().mode === btn.dataset.lay) return;
+  setFloorLay({ mode: btn.dataset.lay });
+  renderFloorLay();
+});
+
+layXEl.addEventListener('input', () => {
+  const v = Number(layXEl.value);
+  setFloorLay({ offsetX: v });
+  layXVal.textContent = `${v.toFixed(2)} m`;
+});
+
+layZEl.addEventListener('input', () => {
+  const v = Number(layZEl.value);
+  setFloorLay({ offsetZ: v });
+  layZVal.textContent = `${v.toFixed(2)} m`;
 });
 
 document.getElementById('btn-style').addEventListener('click', () => {

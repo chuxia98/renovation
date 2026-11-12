@@ -149,6 +149,7 @@ export function buildApartment(scene, envTexture) {
     mesh.name = 'floor';
     mesh.userData.roomId = f.room;
     mesh.userData.floorSize = { w, d };
+    mesh.userData.floorRect = { x1, z1, x2, z2 };
     floorMeshes.push(mesh);
 
     // 顶棚

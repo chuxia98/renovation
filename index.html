@@ -80,6 +80,23 @@
           <span class="head-title" data-i18n="style.title">Room Style</span>
           <span class="head-sub" data-i18n="style.subtitle">Per-room finish · saved with layouts</span>
         </div>
+        <div class="style-section">
+          <div class="style-section-head" data-i18n="style.lay">Floor laying</div>
+          <div class="seg" id="style-floor-lay">
+            <button type="button" data-lay="room" data-i18n="style.lay.room">Per room</button>
+            <button type="button" data-lay="continuous" data-i18n="style.lay.continuous">Continuous</button>
+          </div>
+          <div class="style-row hidden" id="style-lay-offset-x-row">
+            <label for="style-lay-offset-x" data-i18n="style.lay.offsetX">Left / right offset</label>
+            <input id="style-lay-offset-x" type="range" min="-2" max="2" step="0.01" />
+            <span class="lay-val" id="style-lay-offset-x-val"></span>
+          </div>
+          <div class="style-row hidden" id="style-lay-offset-z-row">
+            <label for="style-lay-offset-z" data-i18n="style.lay.offsetZ">Front / back offset</label>
+            <input id="style-lay-offset-z" type="range" min="-2" max="2" step="0.01" />
+            <span class="lay-val" id="style-lay-offset-z-val"></span>
+          </div>
+        </div>
         <div class="style-row">
           <label for="style-room" data-i18n="style.room">Room</label>
           <select id="style-room"></select>

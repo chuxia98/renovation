@@ -6,7 +6,7 @@ const ANISO = 16;
 const MAP_SIZE = 512;
 
 // 木地板贴图覆盖范围（米）
-const WOOD_TEX_METERS = 2;
+export const WOOD_TEX_METERS = 2;
 // 墙面贴图覆盖范围（米），build.js 按此换算每个面的 UV
 export const WALL_TEX_METERS = 1.5;
 

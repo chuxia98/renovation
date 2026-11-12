@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FLOORS, ROOMS } from './plan.js';
-import { createFloorMaterial, createWallMaterial, FLOOR_DEFAULTS, WALL_DEFAULT } from './textures.js';
+import { createFloorMaterial, createWallMaterial, FLOOR_DEFAULTS, WALL_DEFAULT, WOOD_TEX_METERS } from './textures.js';
 
 const STORAGE_KEY = 'hourse-style-v2';
 
@@ -53,16 +53,32 @@ function defaultRoomStyle(roomId) {
 }
 
 export function defaultStyle() {
-  const style = {};
+  const style = { floorLay: { mode: 'room', offsetX: 0, offsetZ: 0 } };
   for (const r of ROOMS) style[r.id] = defaultRoomStyle(r.id);
   return style;
+}
+
+// 旧版房间 id（master/second/multi）→ 新 id（bedUpper/bedLower/master）
+// 旧 master=左上次卧，旧 second=左下次卧，旧 multi=主卧
+function migrateRoomKeys(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (!('second' in obj) && !('multi' in obj)) return obj;
+  const out = { ...obj };
+  delete out.master;
+  delete out.second;
+  delete out.multi;
+  if (obj.master) out.bedUpper = obj.master;
+  if (obj.second) out.bedLower = obj.second;
+  if (obj.multi) out.master = obj.multi;
+  return out;
 }
 
 function loadStyle() {
   const base = defaultStyle();
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const raw = migrateRoomKeys(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
     if (!raw || typeof raw !== 'object') return base;
+    if (raw.floorLay) base.floorLay = { ...base.floorLay, ...raw.floorLay };
     for (const r of ROOMS) {
       const saved = raw[r.id];
       if (!saved) continue;
@@ -117,7 +133,21 @@ function applyFloorMesh(mesh) {
   const conf = style[roomId].floor;
   const { w, d } = mesh.userData.floorSize;
   disposeFloorMaterial(mesh.material);
-  mesh.material = createFloorMaterial(conf.kind, w, d, conf);
+  const mat = createFloorMaterial(conf.kind, w, d, conf);
+  const lay = style.floorLay;
+  if (lay.mode === 'continuous') {
+    // 通铺：把贴图相位锚到世界原点 + 用户偏移，跨房间对齐
+    // 顶面 UV：u 随世界 X 增大，v 随世界 Z 减小
+    const rect = mesh.userData.floorRect;
+    const tx = conf.kind === 'wood' ? WOOD_TEX_METERS : conf.w * 2;
+    const ty = conf.kind === 'wood' ? WOOD_TEX_METERS : conf.d * 2;
+    const ox = (rect.x1 - lay.offsetX) / tx;
+    const oy = (lay.offsetZ - rect.z2) / ty;
+    for (const tex of [mat.map, mat.normalMap, mat.roughnessMap]) {
+      if (tex) tex.offset.set(ox, oy);
+    }
+  }
+  mesh.material = mat;
 }
 
 function applyWallMesh(mesh) {
@@ -155,6 +185,16 @@ export function getRoomStyle(roomId) {
   return style[roomId];
 }
 
+export function getFloorLay() {
+  return style.floorLay;
+}
+
+export function setFloorLay(patch) {
+  style.floorLay = { ...style.floorLay, ...patch };
+  persist();
+  applyFloors();
+}
+
 export function updateRoom(roomId, patch) {
   const room = style[roomId];
   if (patch.floor) {
@@ -183,9 +223,11 @@ export function getStyleSnapshot() {
 
 export function setStyleSnapshot(snapshot) {
   const base = defaultStyle();
-  if (snapshot && typeof snapshot === 'object') {
+  const snap = migrateRoomKeys(snapshot);
+  if (snap && typeof snap === 'object') {
+    if (snap.floorLay) base.floorLay = { ...base.floorLay, ...snap.floorLay };
     for (const r of ROOMS) {
-      const saved = snapshot[r.id];
+      const saved = snap[r.id];
       if (!saved) continue;
       if (saved.floor) base[r.id].floor = { ...base[r.id].floor, ...saved.floor };
       if (saved.wall) base[r.id].wall = { ...base[r.id].wall, ...saved.wall };

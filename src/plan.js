@@ -14,7 +14,7 @@ export const mz = (py) => (py - ORIGIN_PX.y) / PX_PER_M;
 // light: 窗洞天光面光的朝向（v 墙为 x 方向，h 墙为 z 方向），没有则该洞不进光
 export const WALLS = [
   {
-    // 西外墙：主卧 + 次卧，两处 TC1517 飘窗
+    // 西外墙：左上次卧 + 左下次卧，两处 TC1517 飘窗
     o: 'v', at: 368, from: 795, to: 1853, t: 36,
     openings: [
       { from: 922, to: 1188, sill: 0.5, top: 2.2, kind: 'window', bay: true, light: 1 },
@@ -26,11 +26,11 @@ export const WALLS = [
     o: 'v', at: 950, from: 832, to: 1853, t: 20,
     openings: [
       { from: 1100, to: 1260, sill: 0, top: 2.1, kind: 'door', hinge: 'b', angle: 65 },
-      { from: 1333, to: 1494, sill: 0, top: 2.1, kind: 'door', hinge: 'b', angle: 65 },
+      { from: 1333, to: 1494, sill: 0, top: 2.1, kind: 'door', hinge: 'a', angle: -65 },
     ],
   },
   {
-    // 多功能房西外墙
+    // 主卧西外墙
     o: 'v', at: 619, from: 1816, to: 2480, t: 37,
     openings: [],
   },
@@ -42,7 +42,7 @@ export const WALLS = [
     ],
   },
   {
-    // 客餐厅西墙下段 / 多功能房东墙
+    // 客餐厅西墙下段 / 主卧东墙
     o: 'v', at: 1300, from: 1530, to: 2480, t: 38,
     openings: [],
   },
@@ -69,7 +69,7 @@ export const WALLS = [
     ],
   },
   {
-    // 北外墙：主卧北墙 + 卫生间北墙（C0914 高窗）
+    // 北外墙：左上次卧北墙 + 卫生间北墙（C0914 高窗）
     o: 'h', at: 813, from: 350, to: 1318, t: 38,
     openings: [
       { from: 996, to: 1209, sill: 1.1, top: 2.5, kind: 'window', light: 1 },
@@ -90,7 +90,7 @@ export const WALLS = [
     ],
   },
   {
-    // 主卧 / 次卧隔墙
+    // 左上次卧 / 左下次卧隔墙
     o: 'h', at: 1297, from: 350, to: 960, t: 37,
     openings: [],
   },
@@ -107,7 +107,7 @@ export const WALLS = [
     ],
   },
   {
-    // 次卧南墙
+    // 左下次卧南墙
     o: 'h', at: 1835, from: 350, to: 960, t: 37,
     openings: [],
   },
@@ -119,7 +119,7 @@ export const WALLS = [
     ],
   },
   {
-    // 多功能房南外墙 / FCZ1817 飘窗
+    // 主卧南外墙 / FCZ1817 飘窗
     o: 'h', at: 2461, from: 601, to: 1318, t: 38,
     openings: [
       { from: 799, to: 1119, sill: 0.5, top: 2.2, kind: 'window', bay: true, light: -1 },
@@ -130,8 +130,8 @@ export const WALLS = [
 // 可单独设置地面 / 墙面样式的房间（名称走 i18n：room.<id>）
 export const ROOMS = [
   { id: 'master' },
-  { id: 'second' },
-  { id: 'multi' },
+  { id: 'bedUpper' },
+  { id: 'bedLower' },
   { id: 'bath' },
   { id: 'corridor' },
   { id: 'kitchen' },
@@ -143,10 +143,10 @@ export const ROOMS = [
 
 // 地面分区（像素矩形）；room 指向 ROOMS；同房间可有多块地面
 export const FLOORS = [
-  { x1: 386, z1: 832, x2: 941, z2: 1279, mat: 'wood', room: 'master' },    // 主卧
-  { x1: 386, z1: 1315, x2: 941, z2: 1816, mat: 'wood', room: 'second' },   // 次卧
-  { x1: 637, z1: 1853, x2: 1281, z2: 2443, mat: 'wood', room: 'multi' },   // 多功能房
-  { x1: 960, z1: 1566, x2: 1281, z2: 1853, mat: 'wood', room: 'multi' },   // 多功能房北区
+  { x1: 386, z1: 832, x2: 941, z2: 1279, mat: 'wood', room: 'bedUpper' },  // 左上次卧
+  { x1: 386, z1: 1315, x2: 941, z2: 1816, mat: 'wood', room: 'bedLower' }, // 左下次卧
+  { x1: 637, z1: 1853, x2: 1281, z2: 2443, mat: 'wood', room: 'master' },  // 主卧
+  { x1: 960, z1: 1566, x2: 1281, z2: 1853, mat: 'wood', room: 'master' },  // 主卧北区
   { x1: 960, z1: 832, x2: 1281, z2: 1082, mat: 'tile', room: 'bath' },     // 卫生间
   { x1: 960, z1: 1100, x2: 1281, z2: 1566, mat: 'tile', room: 'corridor' },// 走廊 + 洗手区
   { x1: 1318, z1: 503, x2: 1727, z2: 956, mat: 'tile', room: 'kitchen' },  // 厨房
@@ -156,8 +156,8 @@ export const FLOORS = [
   { x1: 1766, z1: 464, x2: 2016, z2: 662, mat: 'stone', room: 'porch' },   // 入户平台
 
   // 门洞 / 过门石，跟随相邻房间样式
-  { x1: 941, z1: 1100, x2: 960, z2: 1260, mat: 'wood', room: 'master' },
-  { x1: 941, z1: 1333, x2: 960, z2: 1494, mat: 'wood', room: 'second' },
+  { x1: 941, z1: 1100, x2: 960, z2: 1260, mat: 'wood', room: 'bedUpper' },
+  { x1: 941, z1: 1333, x2: 960, z2: 1494, mat: 'wood', room: 'bedLower' },
   { x1: 960, z1: 1082, x2: 1102, z2: 1100, mat: 'tile', room: 'bath' },
   { x1: 1569, z1: 956, x2: 1711, z2: 966, mat: 'tile', room: 'kitchen' },
   { x1: 1281, z1: 1316, x2: 1318, z2: 1530, mat: 'wood', room: 'living' },
@@ -174,10 +174,10 @@ export const BAYS = [
 
 // 吸顶灯位置（世界坐标，米）
 export const CEILING_LIGHTS = [
-  { x: 1.70, z: 3.30, power: 22 },  // 主卧
-  { x: 1.70, z: 6.10, power: 22 },  // 次卧
-  { x: 2.60, z: 9.20, power: 24 },  // 多功能房
-  { x: 4.45, z: 6.90, power: 16 },  // 多功能房北区
+  { x: 1.70, z: 3.30, power: 22 },  // 左上次卧
+  { x: 1.70, z: 6.10, power: 22 },  // 左下次卧
+  { x: 2.60, z: 9.20, power: 24 },  // 主卧
+  { x: 4.45, z: 6.90, power: 16 },  // 主卧北区
   { x: 4.20, z: 2.65, power: 18 },  // 卫生间
   { x: 4.10, z: 4.45, power: 14 },  // 洗手区
   { x: 6.55, z: 1.45, power: 24 },  // 厨房

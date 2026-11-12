@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BALCONY_MODES, FLOOR_SIZES, FLOOR_SWATCHES, WALL_SWATCHES, defaultStyle, getRoomStyle,
-  getStyleSnapshot, setStyleSnapshot, updateRoom,
+  getStyleSnapshot, setStyleSnapshot, updateRoom, getFloorLay, setFloorLay,
 } from '../src/style.js';
 import { FLOOR_DEFAULTS, WALL_DEFAULT } from '../src/textures.js';
 import { ROOMS } from '../src/plan.js';
@@ -103,5 +103,61 @@ describe('样式状态', () => {
     expect(getRoomStyle('bath').wall.finish).not.toBe('grid');
     setStyleSnapshot(snap);
     expect(getRoomStyle('bath').wall).toEqual({ finish: 'grid', color: '#abcdef' });
+  });
+});
+
+describe('地板铺法', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setStyleSnapshot(null);
+  });
+
+  it('默认分房铺且偏移为零', () => {
+    expect(defaultStyle().floorLay).toEqual({ mode: 'room', offsetX: 0, offsetZ: 0 });
+    expect(getFloorLay().mode).toBe('room');
+  });
+
+  it('通铺与偏移可设置并随快照往返', () => {
+    setFloorLay({ mode: 'continuous', offsetX: 0.35, offsetZ: -0.2 });
+    expect(getFloorLay()).toEqual({ mode: 'continuous', offsetX: 0.35, offsetZ: -0.2 });
+    const snap = getStyleSnapshot();
+    setStyleSnapshot(null);
+    expect(getFloorLay().mode).toBe('room');
+    setStyleSnapshot(snap);
+    expect(getFloorLay()).toEqual({ mode: 'continuous', offsetX: 0.35, offsetZ: -0.2 });
+  });
+
+  it('局部更新偏移不丢失模式', () => {
+    setFloorLay({ mode: 'continuous' });
+    setFloorLay({ offsetX: 0.5 });
+    expect(getFloorLay()).toEqual({ mode: 'continuous', offsetX: 0.5, offsetZ: 0 });
+  });
+});
+
+describe('旧版房间 id 迁移', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setStyleSnapshot(null);
+  });
+
+  it('旧 master/second/multi 映射到 bedUpper/bedLower/master', () => {
+    const old = {
+      master: { floor: { kind: 'wood', color: '#111111', size: 0.15 }, wall: { finish: 'linen', color: '#222222' } },
+      second: { floor: { kind: 'wood', color: '#333333', size: 0.15 }, wall: { finish: 'paint', color: '#444444' } },
+      multi: { floor: { kind: 'wood', color: '#555555', size: 0.15 }, wall: { finish: 'grid', color: '#666666' } },
+    };
+    setStyleSnapshot(old);
+    expect(getRoomStyle('bedUpper').floor.color).toBe('#111111');
+    expect(getRoomStyle('bedLower').floor.color).toBe('#333333');
+    expect(getRoomStyle('master').floor.color).toBe('#555555');
+    expect(getRoomStyle('master').wall.finish).toBe('grid');
+    expect(getStyleSnapshot().second).toBeUndefined();
+    expect(getStyleSnapshot().multi).toBeUndefined();
+  });
+
+  it('新格式快照不被迁移改写', () => {
+    setStyleSnapshot({ master: { floor: { color: '#abcdef' } } });
+    expect(getRoomStyle('master').floor.color).toBe('#abcdef');
+    expect(getRoomStyle('bedUpper').floor.color).not.toBe('#abcdef');
   });
 });
