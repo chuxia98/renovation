@@ -3,6 +3,7 @@ dist/
 .DS_Store
 *.log
 .shots/
+.claude/settings.local.json
 
 # Derived floor-plan analysis artifacts
 crop_*.png

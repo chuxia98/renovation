@@ -25,7 +25,7 @@ describe('样式常量', () => {
   });
 
   it('地砖规格覆盖常见装修尺寸', () => {
-    expect(FLOOR_SIZES.tile).toContainEqual({ w: 0.3, d: 0.3 });
+    expect(FLOOR_SIZES.tile).toContainEqual({ w: 0.4, d: 0.4 });
     expect(FLOOR_SIZES.tile).toContainEqual({ w: 0.6, d: 0.6 });
     expect(FLOOR_SIZES.tile).toContainEqual({ w: 0.8, d: 0.8 });
     expect(FLOOR_SIZES.tile).toContainEqual({ w: 0.6, d: 1.2 });
@@ -71,8 +71,8 @@ describe('样式状态', () => {
       expect(['paint', 'linen', 'stripe', 'grid']).toContain(s.wall.finish);
       expect(s.wall.color).toMatch(HEX);
     }
-    expect(style.bath.floor).toMatchObject({ kind: 'tile', w: 0.3, d: 0.3 });
-    expect(style.balcony.floor).toMatchObject({ kind: 'tile', w: 0.3, d: 0.3 });
+    expect(style.bath.floor).toMatchObject({ kind: 'tile', w: 0.4, d: 0.4 });
+    expect(style.balcony.floor).toMatchObject({ kind: 'tile', w: 0.4, d: 0.4 });
     expect(style.kitchen.floor).toMatchObject({ kind: 'tile', w: 0.6, d: 0.6 });
   });
 

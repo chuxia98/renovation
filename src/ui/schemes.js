@@ -1,6 +1,6 @@
 import { t } from '../i18n.js';
 import { catalogItem } from '../furniture.js';
-import { getStyleSnapshot, setStyleSnapshot } from '../style.js';
+import { defaultStyle, getStyleSnapshot, setStyleSnapshot } from '../style.js';
 import { STORE_KEY, snapshot, applyLayout, saveLayout, placements, LAYOUT_PRESETS } from '../core/furnitureState.js';
 import { toast } from './toast.js';
 import { syncPanelOverlay } from './panelOverlay.js';
@@ -16,9 +16,132 @@ const buildbar = document.getElementById('buildbar');
 
 let schemes = [];
 
+// 示例软装：同一套户型，用不同家具与硬装组合成当季流行风格
+const BASE_ITEMS = [
+  { t: 'rug', v: '', x: 7.3, z: 7.2, r: 0 },
+  { t: 'sofa', v: 'corner', x: 6.5, z: 7.35, r: 90 },
+  { t: 'coffee', v: 'round', x: 7.55, z: 7.2, r: 0 },
+  { t: 'armchair', v: 'rattan', x: 7.45, z: 5.85, r: 0 },
+  { t: 'tv', v: 'long', x: 8.85, z: 7.2, r: 270 },
+  { t: 'plant', v: '', x: 8.85, z: 8.9, r: 0 },
+  { t: 'lamp', v: '', x: 5.75, z: 8.75, r: 0 },
+  { t: 'dining', v: 'round', x: 7.3, z: 4.35, r: 0 },
+  { t: 'chair', v: 'fabric', x: 6.4, z: 4.35, r: 90 },
+  { t: 'chair', v: 'fabric', x: 8.2, z: 4.35, r: 270 },
+  { t: 'chair', v: 'fabric', x: 7.3, z: 3.65, r: 0 },
+  { t: 'chair', v: 'fabric', x: 7.3, z: 5.05, r: 180 },
+  { t: 'counter', v: '', x: 6.1, z: 0.55, r: 0 },
+  { t: 'fridge', v: '', x: 7.25, z: 0.6, r: 0 },
+  { t: 'bed', v: 'upholstered', x: 3.4, z: 8.75, r: 0 },
+  { t: 'nightstand', v: 'drawer', x: 2.3, z: 7.95, r: 0 },
+  { t: 'nightstand', v: 'round', x: 4.5, z: 7.95, r: 0 },
+  { t: 'wardrobe', v: 'slat', x: 3.4, z: 10.6, r: 180 },
+];
+
+const swap = (type, variant, items = BASE_ITEMS) =>
+  items.map((it) => (it.t === type ? { ...it, v: variant } : { ...it }));
+
+// 硬装主题：木地板 + 墙面 + 砖石规格 + 阳台围护
+function themeStyle(opt) {
+  const s = defaultStyle();
+  s.floorLay.mode = 'room';
+  const paint = (id, color) => { s[id].wall = { finish: opt.finish ?? 'paint', color }; };
+  for (const id of ['master', 'bedUpper', 'bedLower', 'living', 'entry']) {
+    s[id].floor = { kind: 'wood', color: opt.wood, size: opt.woodSize ?? 0.2 };
+    paint(id, opt.wall);
+  }
+  s.corridor.floor = { kind: 'tile', color: opt.corridor ?? '#c8c4bd', w: 0.6, d: 0.6 };
+  paint('corridor', opt.wall);
+  paint('porch', opt.wall);
+  for (const [id, conf] of Object.entries(opt.rooms ?? {})) {
+    if (conf.floor) s[id].floor = { ...s[id].floor, ...conf.floor };
+    if (conf.wall) paint(id, conf.wall);
+  }
+  s.balcony.enclosure = opt.glass === false ? 'solid' : 'glass';
+  s.balcony.door = true;
+  s.sliderOpening = opt.opening ?? 0;
+  s.livingIncludesBalcony = true;
+  s.nicheWall = { semi: !opt.nicheFull, height: opt.nicheHeight ?? 1.3 };
+  return s;
+}
+
+const STYLE_SCHEMES = [
+  {
+    id: 'theme-cream',
+    nameKey: 'scheme.themeCream',
+    items: swap('dining', 'pedestal'),
+    style: themeStyle({
+      wood: '#b08a62', wall: '#efeae2', finish: 'paint', woodSize: 0.18,
+      rooms: {
+        bath: { floor: { kind: 'tile', color: '#dfd9ce', w: 0.4, d: 0.4 }, wall: '#e9e4da' },
+        kitchen: { floor: { kind: 'tile', color: '#d9cdb9', w: 0.6, d: 0.6 }, wall: '#efeae2' },
+        balcony: { floor: { kind: 'tile', color: '#c8c4bd', w: 0.4, d: 0.4 }, wall: '#e9e4da' },
+      },
+    }),
+  },
+  {
+    id: 'theme-japandi',
+    nameKey: 'scheme.themeJapandi',
+    items: swap('chair', 'rattan', swap('dining', 'oval', swap('armchair', 'shell'))),
+    style: themeStyle({
+      wood: '#9c7b57', wall: '#e3ddd1', finish: 'paint', woodSize: 0.15,
+      rooms: {
+        bath: { floor: { kind: 'tile', color: '#b8b3a8', w: 0.4, d: 0.4 }, wall: '#d8d2c6' },
+        kitchen: { floor: { kind: 'tile', color: '#c8c4bd', w: 0.6, d: 0.6 }, wall: '#ddd7ca' },
+        balcony: { floor: { kind: 'tile', color: '#9a9388', w: 0.4, d: 0.4 }, wall: '#d8d2c6' },
+      },
+    }),
+  },
+  {
+    id: 'theme-luxe',
+    nameKey: 'scheme.themeLuxe',
+    items: swap('bed', 'floating', swap('wardrobe', 'glass', swap('armchair', 'lounge'))),
+    style: themeStyle({
+      wood: '#5f4632', wall: '#d8d2c6', finish: 'paint', woodSize: 0.2,
+      rooms: {
+        bath: { floor: { kind: 'tile', color: '#6f6d68', w: 0.6, d: 0.6 }, wall: '#c2bdb4' },
+        kitchen: { floor: { kind: 'tile', color: '#8f8d88', w: 0.8, d: 0.8 }, wall: '#d8d2c6' },
+        balcony: { floor: { kind: 'tile', color: '#8f8d88', w: 0.6, d: 0.6 }, wall: '#c2bdb4' },
+        porch: { floor: { kind: 'stone', color: '#6f6a62', w: 0.8, d: 0.8 } },
+      },
+      opening: 0.55,
+    }),
+  },
+  {
+    id: 'theme-midcentury',
+    nameKey: 'scheme.themeMidcentury',
+    items: swap('chair', 'wood', swap('dining', 'oval', swap('armchair', 'lounge'))),
+    style: themeStyle({
+      wood: '#8c6b4b', wall: '#c3cbb8', finish: 'paint', woodSize: 0.12,
+      rooms: {
+        living: { wall: '#c9a693' },
+        bath: { floor: { kind: 'tile', color: '#c8c4bd', w: 0.4, d: 0.4 }, wall: '#d7b8a5' },
+        kitchen: { floor: { kind: 'tile', color: '#d9cdb9', w: 0.6, d: 0.6 }, wall: '#c3cbb8' },
+        balcony: { floor: { kind: 'tile', color: '#c8c4bd', w: 0.4, d: 0.4 }, wall: '#a9a49b' },
+      },
+      glass: false,
+    }),
+  },
+  {
+    id: 'theme-italian',
+    nameKey: 'scheme.themeItalian',
+    items: swap('dining', 'rect', swap('coffee', 'rect', swap('chair', 'wood', swap('armchair', 'shell', swap('wardrobe', 'flat'))))),
+    style: themeStyle({
+      wood: '#8a6d4f', wall: '#f5f0e6', finish: 'paint', woodSize: 0.2,
+      rooms: {
+        bath: { floor: { kind: 'stone', color: '#a9a49b', w: 0.8, d: 0.8 }, wall: '#e7e1d6' },
+        kitchen: { floor: { kind: 'tile', color: '#a9a49b', w: 0.8, d: 0.8 }, wall: '#f5f0e6' },
+        balcony: { floor: { kind: 'stone', color: '#8f8a82', w: 0.8, d: 0.8 }, wall: '#e7e1d6' },
+        porch: { floor: { kind: 'stone', color: '#8f8a82', w: 0.8, d: 0.8 } },
+      },
+    }),
+  },
+];
+
 const BUILTINS = [
   { id: 'preset-empty', nameKey: 'scheme.presetEmpty', items: LAYOUT_PRESETS.empty },
   { id: 'preset-sanitary', nameKey: 'scheme.presetSanitary', items: LAYOUT_PRESETS.sanitary },
+  ...STYLE_SCHEMES.map((s) => ({ ...s, kind: 'style' })),
 ];
 
 function readSchemes() {
@@ -74,7 +197,7 @@ function schemeRow(s, builtin) {
   const meta = document.createElement('div');
   meta.className = 'scheme-meta';
   meta.textContent = builtin
-    ? t('scheme.builtinMeta', { n: s.items.length })
+    ? t(s.kind === 'style' ? 'scheme.styleMeta' : 'scheme.builtinMeta', { n: s.items.length })
     : t('scheme.meta', { n: s.items.length, at: formatStamp(s.at) });
   info.append(name, meta);
 

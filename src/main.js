@@ -9,6 +9,10 @@ import { bindApartment } from './style.js';
 import { loadPbr } from './pbr.js';
 import { loadModels } from './models.js';
 import { renderer, scene, camera, envTexture } from './core/scene.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { placements, loadLayout, clearFurniture, bindColliders } from './core/furnitureState.js';
 import { toast } from './ui/toast.js';
 import { syncPanelOverlay } from './ui/panelOverlay.js';
@@ -35,6 +39,19 @@ applyGlossyEnv(envTexture);
 bindApartment({ floorMeshes, wallMeshes, balcony, balconyDoor, nicheWall });
 bindColliders(colliders);
 const interactionRoots = interactions.flatMap((it) => it.roots);
+
+// ---------- 后处理：环境光遮蔽（GTAO）让家具与墙角产生真实接触阴影 ----------
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+gtaoPass.output = GTAOPass.OUTPUT.Default;
+gtaoPass.blendIntensity = 0.9;
+gtaoPass.updateGtaoMaterial({
+  radius: 0.55, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: 16,
+});
+composer.addPass(gtaoPass);
+composer.addPass(new OutputPass());
 
 // ---------- 第一人称控制 ----------
 
@@ -241,6 +258,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
   syncPanelOverlay();
 });
 
@@ -278,7 +296,7 @@ function loop(now) {
     });
   }
 
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 requestAnimationFrame(loop);

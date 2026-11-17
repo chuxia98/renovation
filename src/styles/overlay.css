@@ -1,0 +1,88 @@
+/* ---------- Start overlay ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 800px at 70% 20%, rgba(224, 169, 109, 0.13), transparent 60%),
+    linear-gradient(180deg, rgba(7, 9, 12, 0.82), rgba(7, 9, 12, 0.94));
+  backdrop-filter: blur(8px);
+  z-index: 20;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+#overlay.gone {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.panel {
+  width: min(560px, 100%);
+  padding: 44px 44px 34px;
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(28, 31, 36, 0.92), rgba(14, 16, 19, 0.94));
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+}
+
+.kicker {
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.panel h1 {
+  margin: 14px 0 14px;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.panel p {
+  margin: 0 0 28px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--ink-dim);
+}
+
+#btn-start {
+  width: 100%;
+  padding: 15px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #edbd87, var(--accent));
+  color: #1d1710;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 30px rgba(224, 169, 109, 0.22);
+}
+
+#btn-start:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(224, 169, 109, 0.3);
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 24px;
+  font-size: 12px;
+  color: rgba(243, 238, 230, 0.48);
+}
+
+.keys b {
+  color: rgba(243, 238, 230, 0.82);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+

@@ -1,0 +1,70 @@
+:root {
+  --accent: #e0a96d;
+  --accent-soft: rgba(224, 169, 109, 0.16);
+  --ink: #f3eee6;
+  --ink-dim: rgba(243, 238, 230, 0.62);
+  --glass: rgba(18, 20, 24, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0c0e11;
+  color: var(--ink);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app,
+#app canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#app canvas {
+  cursor: default;
+}
+
+body.locked #app canvas {
+  cursor: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: fixed;
+  top: 22px;
+  left: 24px;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+.brand {
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.brand-sub {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+

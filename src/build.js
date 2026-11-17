@@ -5,12 +5,12 @@ import { createFloorMaterial, createWallMaterial, WALL_TEX_METERS, skyTexture } 
 
 RectAreaLightUniformsLib.init();
 
-const LIGHT_BOOST = 0.2;
+const LIGHT_BOOST = 0.16;
 const ROOM_PROBE = 0.45; // 墙面取样点距墙中心线的距离（米）
 
 // 窗洞天光：冷色面光贴窗朝内，只补充窗口附近的漫射光；方向性亮斑仍由太阳阴影负责
 const DAYLIGHT_COLOR = 0xe4edf9;
-const DAYLIGHT_POWER = 2.4;
+const DAYLIGHT_POWER = 3.0;
 
 export function buildApartment(scene, envTexture) {
   const root = new THREE.Group();
@@ -759,7 +759,7 @@ export function buildApartment(scene, envTexture) {
   const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x8a7a66, 0.18);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff0d6, 1.5);
+  const sun = new THREE.DirectionalLight(0xfff0d6, 1.7);
   sun.position.set(-8, 15, 18);
   sun.target.position.set(5.2, 0.4, 5.8);
   sun.castShadow = true;
