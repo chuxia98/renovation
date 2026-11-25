@@ -32,10 +32,11 @@ const BASE_ITEMS = [
   { t: 'chair', v: 'fabric', x: 7.3, z: 5.05, r: 180 },
   { t: 'counter', v: '', x: 6.1, z: 0.55, r: 0 },
   { t: 'fridge', v: '', x: 7.25, z: 0.6, r: 0 },
-  { t: 'bed', v: 'upholstered', x: 3.4, z: 8.75, r: 0 },
-  { t: 'nightstand', v: 'drawer', x: 2.3, z: 7.95, r: 0 },
-  { t: 'nightstand', v: 'round', x: 4.5, z: 7.95, r: 0 },
-  { t: 'wardrobe', v: 'slat', x: 3.4, z: 10.6, r: 180 },
+  // 主卧：床头靠西墙，床尾朝东；衣柜移到东墙，避开南侧飘窗
+  { t: 'bed', v: 'upholstered', x: 2.65, z: 9.3, r: 90 },
+  { t: 'nightstand', v: 'drawer', x: 1.82, z: 8.12, r: 90 },
+  { t: 'nightstand', v: 'round', x: 1.82, z: 10.48, r: 90 },
+  { t: 'wardrobe', v: 'slat', x: 4.87, z: 9.3, r: 270 },
 ];
 
 const swap = (type, variant, items = BASE_ITEMS) =>

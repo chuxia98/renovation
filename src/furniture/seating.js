@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { part, MAT, B, RB, CYL, clothBox, cushion, artCanvasMaterial, tube } from './core.js';
-import { modelGroup } from '../models.js';
+import { part, MAT, B, RB, CYL, clothBox, cushion, tube, framedArt } from './core.js';
 
 export function sofaStraight(w = 2.1, seats = 2) {
   const g = new THREE.Group();
@@ -54,9 +53,18 @@ export function sofaCorner() {
   cushion(g, 0.4, 0.36, 0.16, MAT.cushionSage, -0.85, 0.7, -0.47, -0.36, 0.25, 0.12);
   cushion(g, 0.4, 0.36, 0.16, MAT.cushionRust, -0.2, 0.68, -0.47, -0.38, -0.2, -0.1);
   cushion(g, 0.36, 0.32, 0.14, MAT.pillow, 0.78, 0.615, 0.62, 0.38, -0.3, 0.12);
-  // 搭在贵妃榻尾端的薄毯：一条垂下前缘，避免叠成厚板
-  part(g, clothBox(0.34, 0.03, 0.74, 0.018, 0.006, 7.2), MAT.throw, 1.06, 0.552, 0.45);
-  part(g, clothBox(0.3, 0.28, 0.035, 0.012, 0.004, 8.1), MAT.throw, 1.06, 0.4, 0.83);
+  // 搭在贵妃榻上的毛毯：多层折叠后垂过外侧和前端，避免整块硬板感
+  const blanket = part(g, clothBox(0.55, 0.032, 0.64, 0.018, 0.012, 7.2), MAT.throw, 1.02, 0.556, 0.42);
+  blanket.rotation.y = 0.06;
+  const fold = part(g, clothBox(0.48, 0.05, 0.2, 0.018, 0.008, 9.1), MAT.throw, 1.02, 0.586, 0.16);
+  fold.rotation.y = -0.05;
+  part(g, clothBox(0.034, 0.3, 0.62, 0.014, 0.006, 8.1), MAT.throw, 1.315, 0.4, 0.42);
+  const drape = part(g, clothBox(0.46, 0.2, 0.032, 0.014, 0.006, 8.6), MAT.throw, 1.04, 0.45, 0.775);
+  drape.rotation.y = 0.04;
+  // 沙发背后的挂画，填补大面积空墙
+  const art = framedArt(1.18, 0.6, 1);
+  art.position.set(0, 1.56, -0.83);
+  g.add(art);
   return g;
 }
 
@@ -111,52 +119,76 @@ export function armchairRattan() {
   return g;
 }
 
-export function sofaSquaryModel() {
-  const g = modelGroup('sofaSquary', 2.6, 1.7);
-  if (!g) return sofaCorner();
-  part(g, RB(1.46, 0.82, 0.032, 0.01), MAT.walnut, 0, 1.86, -1.12);
-  part(g, B(1.36, 0.72, 0.01), artCanvasMaterial(1), 0, 1.86, -1.1);
-  return g;
+// 三条餐椅共用：微外撇的锥形腿与前/后横撑
+function chairLegs(g, mat, spread = 0.14) {
+  for (const x of [-0.18, 0.18]) {
+    for (const z of [-0.18, 0.18]) {
+      const leg = part(g, CYL(0.017, 0.012, 0.45, 10), mat, x, 0.225, z);
+      leg.rotation.z = -x * spread;
+      leg.rotation.x = z * spread;
+    }
+  }
+  for (const z of [-0.16, 0.16]) {
+    part(g, CYL(0.0065, 0.0065, 0.33, 8), mat, 0, 0.16, z, 0, 0, Math.PI / 2);
+  }
 }
-
-// 真实床：床头墙上一幅横向挂画
 
 export function chairFabric() {
   const g = new THREE.Group();
-  part(g, RB(0.46, 0.045, 0.46, 0.02), MAT.fabricBeige, 0, 0.45, 0);
-  for (const x of [-0.19, 0.19]) {
-    for (const z of [-0.19, 0.19]) part(g, B(0.035, 0.44, 0.035), MAT.walnut, x, 0.22, z);
+  chairLegs(g, MAT.walnut, 0.16);
+  // 座框 + 软包坐垫
+  part(g, RB(0.43, 0.045, 0.43, 0.012), MAT.walnut, 0, 0.435, 0);
+  part(g, clothBox(0.45, 0.075, 0.45, 0.022, 0.004, 1.2), MAT.fabricBeige, 0, 0.49, 0.004);
+  // 靠背立柱、上横梁与软包背板
+  for (const x of [-0.18, 0.18]) {
+    const stile = part(g, RB(0.036, 0.5, 0.042, 0.012), MAT.walnut, x, 0.69, -0.195);
+    stile.rotation.x = -0.09;
   }
-  for (const x of [-0.19, 0.19]) part(g, B(0.035, 0.42, 0.035), MAT.walnut, x, 0.68, -0.2);
-  part(g, RB(0.43, 0.3, 0.04, 0.012), MAT.fabricBeige, 0, 0.78, -0.205);
+  const top = part(g, RB(0.41, 0.055, 0.048, 0.014), MAT.walnut, 0, 0.925, -0.218);
+  top.rotation.x = -0.09;
+  const back = part(g, clothBox(0.34, 0.33, 0.06, 0.022, 0.004, 2.1), MAT.fabricBeige, 0, 0.715, -0.196);
+  back.rotation.x = -0.09;
+  for (const x of [-0.095, 0.095]) {
+    part(g, new THREE.SphereGeometry(0.011, 10, 8), MAT.fabricDark, x, 0.72, -0.161);
+  }
   return g;
 }
 
 export function chairWood() {
   const g = new THREE.Group();
-  part(g, RB(0.45, 0.045, 0.44, 0.015), MAT.oak, 0, 0.45, 0);
-  for (const x of [-0.18, 0.18]) {
-    for (const z of [-0.18, 0.18]) part(g, CYL(0.018, 0.015, 0.44, 8), MAT.walnut, x, 0.22, z);
+  chairLegs(g, MAT.walnut, 0.14);
+  part(g, RB(0.44, 0.045, 0.43, 0.012), MAT.oak, 0, 0.435, 0);
+  for (const x of [-0.185, 0.185]) {
+    const stile = part(g, RB(0.034, 0.5, 0.04, 0.012), MAT.walnut, x, 0.69, -0.195);
+    stile.rotation.x = -0.08;
   }
-  for (const x of [-0.18, 0.18]) part(g, B(0.035, 0.44, 0.035), MAT.walnut, x, 0.69, -0.2);
-  for (const y of [0.66, 0.74, 0.82]) part(g, B(0.4, 0.045, 0.03), MAT.oak, 0, y, -0.2);
+  const top = part(g, RB(0.42, 0.055, 0.045, 0.014), MAT.oak, 0, 0.925, -0.216);
+  top.rotation.x = -0.08;
+  for (const y of [0.71, 0.79, 0.87]) {
+    const slat = part(g, RB(0.37, 0.038, 0.022, 0.008), MAT.oak, 0, y, -0.2);
+    slat.rotation.x = -0.08;
+  }
   return g;
 }
 
 export function chairRattan() {
   const g = new THREE.Group();
-  part(g, RB(0.45, 0.04, 0.44, 0.015), MAT.oak, 0, 0.45, 0);
-  part(g, RB(0.4, 0.05, 0.38, 0.03), MAT.fabricBeige, 0, 0.49, 0.01);
+  chairLegs(g, MAT.oak, 0.15);
+  part(g, RB(0.43, 0.045, 0.42, 0.012), MAT.oak, 0, 0.435, 0);
+  part(g, clothBox(0.4, 0.065, 0.39, 0.022, 0.004, 1.4), MAT.fabricBeige, 0, 0.487, 0.01);
   for (const x of [-0.18, 0.18]) {
-    for (const z of [-0.18, 0.18]) part(g, CYL(0.018, 0.015, 0.44, 8), MAT.walnut, x, 0.22, z);
+    const stile = part(g, RB(0.034, 0.52, 0.038, 0.012), MAT.oak, x, 0.69, -0.195);
+    stile.rotation.x = -0.06;
   }
-  for (const x of [-0.19, 0.19]) part(g, CYL(0.02, 0.02, 0.42, 8), MAT.walnut, x, 0.68, -0.2);
-  for (const y of [0.5, 0.88]) part(g, B(0.42, 0.035, 0.035), MAT.walnut, 0, y, -0.2);
-  for (let i = 0; i <= 6; i++) {
-    part(g, CYL(0.008, 0.008, 0.36, 6), MAT.paleWood, -0.16 + i * 0.054, 0.69, -0.2);
+  const top = part(g, RB(0.4, 0.045, 0.042, 0.014), MAT.oak, 0, 0.925, -0.213);
+  top.rotation.x = -0.06;
+  for (let i = 0; i <= 8; i++) {
+    const x = -0.16 + i * 0.04;
+    const reed = part(g, CYL(0.007, 0.007, 0.38, 6), MAT.paleWood, x, 0.725, -0.2);
+    reed.rotation.x = -0.06;
   }
-  for (const y of [0.58, 0.68, 0.78]) {
-    part(g, CYL(0.007, 0.007, 0.37, 6), MAT.paleWood, 0, y, -0.2, 0, 0, Math.PI / 2);
+  for (const y of [0.58, 0.68, 0.78, 0.88]) {
+    part(g, CYL(0.0065, 0.0065, 0.37, 6), MAT.paleWood, 0, y, -0.203, 0, 0, Math.PI / 2);
   }
   return g;
 }

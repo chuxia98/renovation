@@ -65,7 +65,8 @@ export const WALLS = [
     // 入户门厅北墙 / 入户门 HM1021
     o: 'h', at: 676, from: 1766, to: 2016, t: 30,
     openings: [
-      { from: 1781, to: 1963, sill: 0, top: 2.15, kind: 'door', hinge: 'a', angle: -78, style: 'entry' },
+      // 入户门按户型图向室外（北侧入户平台）开启，铰链在西侧门垛
+      { from: 1781, to: 1963, sill: 0, top: 2.15, kind: 'door', hinge: 'a', angle: 78, style: 'entry' },
     ],
   },
   {

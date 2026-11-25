@@ -1,6 +1,6 @@
 import { setLang, getLang } from '../i18n.js';
+import { formatHour } from '../core/dayNight.js';
 import { applyGlossyEnv } from '../furniture.js';
-import { applyModelEnv } from '../models.js';
 import { scene, envTexture } from '../core/scene.js';
 
 const ENV_KEY = 'hourse-env-v1';
@@ -9,8 +9,11 @@ const settingsBtn = document.getElementById('btn-settings');
 const settingsPanel = document.getElementById('settings-panel');
 const langSelect = document.getElementById('lang-select');
 const envToggle = document.getElementById('env-toggle');
+const daylightRange = document.getElementById('daylight-range');
+const daylightTime = document.getElementById('daylight-time');
+const daylightAuto = document.getElementById('daylight-auto');
 
-export function initSettings({ daylightLights, glossyMaterials }) {
+export function initSettings({ daylightLights, glossyMaterials, dayNight }) {
   function applyEnvLight(on) {
     // 关掉环境光只影响天空补光与反射，窗外天空保持不变
     scene.environment = on ? envTexture : null;
@@ -20,8 +23,19 @@ export function initSettings({ daylightLights, glossyMaterials }) {
       mat.needsUpdate = true;
     }
     applyGlossyEnv(on ? envTexture : null);
-    applyModelEnv(on ? envTexture : null);
   }
+
+  function syncDaylight(hour = dayNight.hour) {
+    daylightRange.value = hour;
+    daylightTime.textContent = formatHour(hour);
+  }
+
+  dayNight.onChange((hour) => syncDaylight(hour));
+  syncDaylight();
+  daylightAuto.checked = dayNight.auto;
+
+  daylightRange.addEventListener('input', () => dayNight.setHour(parseFloat(daylightRange.value)));
+  daylightAuto.addEventListener('change', () => dayNight.setAuto(daylightAuto.checked));
 
   settingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();

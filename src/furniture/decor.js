@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { part, MAT, B, RB, CYL, LATHE, topOf } from './core.js';
-import { modelGroup } from '../models.js';
+import { part, MAT, B, RB, CYL, LATHE, tube } from './core.js';
 
 export function rug() {
   const g = new THREE.Group();
@@ -38,40 +37,69 @@ export function floorLamp() {
   return g;
 }
 
+// 龟背竹叶片：贝塞尔轮廓 + 沿长度微弯、两侧微翘
+const LEAF_LEN = 0.46;
+const LEAF_WID = 0.31;
+const MONSTERA_LEAF_GEO = (() => {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.bezierCurveTo(LEAF_WID * 0.5, LEAF_LEN * 0.06, LEAF_WID * 0.52, LEAF_LEN * 0.38, LEAF_WID * 0.24, LEAF_LEN * 0.7);
+  s.bezierCurveTo(LEAF_WID * 0.12, LEAF_LEN * 0.86, LEAF_WID * 0.05, LEAF_LEN * 0.96, 0, LEAF_LEN);
+  s.bezierCurveTo(-LEAF_WID * 0.05, LEAF_LEN * 0.96, -LEAF_WID * 0.12, LEAF_LEN * 0.86, -LEAF_WID * 0.24, LEAF_LEN * 0.7);
+  s.bezierCurveTo(-LEAF_WID * 0.52, LEAF_LEN * 0.38, -LEAF_WID * 0.5, LEAF_LEN * 0.06, 0, 0);
+  const geo = new THREE.ShapeGeometry(s, 16);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const t = y / LEAF_LEN;
+    const cup = 0.09 * (x / (LEAF_WID * 0.55)) ** 2;
+    const bend = -0.16 * Math.sin(t * Math.PI) * (0.35 + t);
+    pos.setZ(i, cup + bend);
+  }
+  geo.computeVertexNormals();
+  return geo;
+})();
+
+const LEAF_MATS = [
+  new THREE.MeshStandardMaterial({ color: 0x3f7a45, roughness: 0.68, side: THREE.DoubleSide }),
+  new THREE.MeshStandardMaterial({ color: 0x5d9558, roughness: 0.72, side: THREE.DoubleSide }),
+];
+
 export function plant() {
   const g = new THREE.Group();
-  part(g, CYL(0.16, 0.12, 0.3, 20), MAT.pot, 0, 0.15, 0);
-  part(g, CYL(0.145, 0.145, 0.02, 20), MAT.soil, 0, 0.3, 0);
-  part(g, CYL(0.014, 0.018, 0.55, 8), MAT.leaf, 0, 0.55, 0);
+  part(g, LATHE([
+    [0.12, 0], [0.135, 0.01], [0.17, 0.07], [0.17, 0.29], [0.175, 0.3], [0.16, 0.31],
+  ], 28), MAT.pot, 0, 0, 0);
+  part(g, CYL(0.155, 0.155, 0.016, 24), MAT.pot, 0, 0.302, 0);
+  part(g, CYL(0.142, 0.142, 0.018, 24), MAT.soil, 0, 0.312, 0);
+
   const leaves = [
-    [0, 0.85, 0, 0.34, 0.06, 0.2, 0],
-    [0.18, 0.78, 0.1, 0.28, 0.05, 0.16, 0.5],
-    [-0.17, 0.8, -0.06, 0.3, 0.05, 0.17, -0.5],
-    [0.1, 0.98, -0.14, 0.26, 0.04, 0.14, 1.1],
-    [-0.12, 1.0, 0.12, 0.24, 0.04, 0.14, 2.0],
-    [0.03, 1.1, 0.02, 0.22, 0.04, 0.12, 0.3],
-    [0.24, 0.72, -0.16, 0.22, 0.04, 0.13, 2.6],
+    [0.15, 0.09, 0.64, 0.95, 1.0, 0],
+    [2.35, 0.16, 0.76, 0.88, 0.92, 1],
+    [4.2, 0.13, 0.86, 0.82, 1.02, 0],
+    [1.25, 0.2, 0.94, 0.72, 0.96, 1],
+    [3.3, 0.21, 1.02, 0.66, 1.08, 0],
+    [5.25, 0.18, 1.08, 0.6, 1.0, 1],
+    [0.6, 0.24, 1.16, 0.55, 0.88, 0],
+    [2.75, 0.14, 1.22, 0.45, 0.84, 1],
+    [4.85, 0.08, 1.28, 0.35, 0.78, 0],
   ];
-  for (const [x, y, z, sx, sy, sz, ry] of leaves) {
-    const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), MAT.leafLight);
-    leaf.scale.set(sx, sy, sz);
-    leaf.position.set(x, y, z);
-    leaf.rotation.y = ry;
-    leaf.rotation.z = x * 0.9;
+  for (const [a, r, h, tilt, scale, mat] of leaves) {
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    tube(g, [[0, 0.31, 0], [x * 0.35, h * 0.55, z * 0.35], [x * 0.8, h - 0.18, z * 0.8], [x, h, z]], 0.006, MAT.leaf, 20);
+    const leaf = new THREE.Mesh(MONSTERA_LEAF_GEO, LEAF_MATS[mat]);
+    leaf.position.set(x, h, z);
+    leaf.rotation.order = 'YXZ';
+    leaf.rotation.y = Math.PI / 2 - a;
+    leaf.rotation.x = tilt;
+    leaf.rotation.z = (mat ? -1 : 1) * 0.08;
+    leaf.scale.setScalar(scale);
     leaf.castShadow = true;
+    leaf.receiveShadow = true;
     g.add(leaf);
   }
-  return g;
-}
-
-
-export function floorLampModel() {
-  const g = modelGroup('lampOslo', 0.4, 0.4);
-  if (!g) return floorLamp();
-  const top = topOf(g);
-  const light = new THREE.PointLight(0xffd7a0, 5.5, 3.8, 2);
-  light.position.set(0, top * 0.74, 0);
-  g.add(light);
   return g;
 }
 

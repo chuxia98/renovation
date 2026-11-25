@@ -36,9 +36,41 @@
           <label for="env-toggle" data-i18n="settings.env">Environment light</label>
           <input id="env-toggle" class="switch" type="checkbox" />
         </div>
-        <div class="settings-credits" data-i18n-html="settings.credits">Furniture models: "Glam Velvet Sofa" © 2021 Wayfair (CC BY 4.0). Other models: BlenderKit (Royalty Free) and Poly Haven (CC0).</div>
+        <div class="settings-row">
+          <label for="daylight-range" data-i18n="settings.daylight">Time of day</label>
+          <span id="daylight-time" class="settings-value">15:00</span>
+        </div>
+        <input id="daylight-range" class="time-range" type="range" min="0" max="24" step="0.05" />
+        <div class="settings-row">
+          <label for="daylight-auto" data-i18n="settings.daylightAuto">Day–night cycle</label>
+          <input id="daylight-auto" class="switch" type="checkbox" />
+        </div>
+        <div class="settings-credits" data-i18n-html="settings.credits">Apartment and furniture are modelled procedurally with three.js. PBR textures and the HDR environment are CC0 assets.</div>
       </div>
     </div>
+
+    <button id="btn-pick" type="button" data-i18n-aria="pick.open" aria-label="Inspect (P)">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="1.3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    </button>
+
+    <div id="picker" class="hidden">
+      <div class="picker-head">
+        <span class="picker-title" data-i18n="pick.title">Inspect</span>
+        <span class="picker-hint" data-i18n="pick.hint">Click an error spot · drag to look · P exits</span>
+        <button id="picker-close" class="pop-close" type="button" data-i18n-aria="pop.close" aria-label="Close">×</button>
+      </div>
+      <div id="picker-list" class="picker-list"></div>
+      <div class="picker-actions">
+        <button id="picker-copy" type="button" data-i18n="pick.copy">Copy report</button>
+        <button id="picker-clear" type="button" data-i18n="pick.clear">Clear</button>
+      </div>
+    </div>
+
+    <div id="pick-tip" class="hidden"></div>
 
     <div id="mode" class="hidden" data-i18n="mode.walkthrough">Walkthrough</div>
 

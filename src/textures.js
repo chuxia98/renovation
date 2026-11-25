@@ -583,25 +583,23 @@ export function createWallMaterial(cfg = {}) {
   const map = wallTexture(conf);
   const plaster = pbrSet('plaster');
   let normalMap;
-  let roughnessMap;
   if (plaster) {
     // 真实灰泥的微起伏；墙面 UV 已按 1.5 米一格换算
     normalMap = plaster.normal;
-    roughnessMap = plaster.rough;
   } else {
     const relief = cachedRelief(
       `wall|${conf.finish}|${conf.color.toLowerCase()}`,
       () => buildRelief(wallCanvas(conf), { normalStrength: 0.9, baseRough: 0.9, roughRange: 0.25, blur: 2 }),
     );
     normalMap = toTexture(relief.normal, 1, false);
-    roughnessMap = toTexture(relief.rough, 1, false);
   }
   return new THREE.MeshStandardMaterial({
     map,
     normalMap,
-    roughnessMap,
     normalScale: new THREE.Vector2(0.38, 0.38),
-    roughness: 1,
+    // 墙面漆按哑光处理：灰泥粗糙度贴图里的低粗糙斑点遇到近距离吸顶灯，
+    // 会在墙上反射出一块云状镜面高光，看起来像脏污/假阴影
+    roughness: 0.95,
     metalness: 0,
     envMapIntensity: 0.15,
   });

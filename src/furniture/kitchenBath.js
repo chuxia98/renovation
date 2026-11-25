@@ -15,11 +15,11 @@ export function fridge() {
   part(g, RB(W - 0.02, 0.81, 0.028, 0.014), MAT.appliance, 0, 1.385, fz);
   part(g, RB(W - 0.02, 0.89, 0.028, 0.014), MAT.appliance, 0, 0.555, fz);
   part(g, B(W - 0.06, 0.006, 0.006), MAT.recess, 0, 0.978, fz + 0.014);
-  // 竖向长把手（左侧）
-  part(g, CYL(0.011, 0.011, 0.52, 12), MAT.steel, -W / 2 + 0.105, 1.18, fz + 0.034);
-  part(g, CYL(0.011, 0.011, 0.46, 12), MAT.steel, -W / 2 + 0.105, 0.64, fz + 0.034);
-  for (const y of [0.93, 1.43, 0.42, 0.86]) {
-    part(g, CYL(0.007, 0.007, 0.034, 8), MAT.steel, -W / 2 + 0.105, y, fz + 0.017, Math.PI / 2);
+  // 竖向长把手（左侧），哑光不锈钢配短支脚
+  part(g, CYL(0.011, 0.011, 0.4, 12), MAT.steelBrushed, -W / 2 + 0.105, 1.2, fz + 0.034);
+  part(g, CYL(0.011, 0.011, 0.36, 12), MAT.steelBrushed, -W / 2 + 0.105, 0.65, fz + 0.034);
+  for (const y of [1.01, 1.39, 0.48, 0.82]) {
+    part(g, CYL(0.007, 0.007, 0.034, 8), MAT.steelBrushed, -W / 2 + 0.105, y, fz + 0.017, Math.PI / 2);
   }
   // 底部散热格栅与调平脚
   for (let i = 0; i < 5; i++) part(g, B(0.3, 0.008, 0.014), MAT.metal, 0, 0.085 + i * 0.018, fz + 0.008);

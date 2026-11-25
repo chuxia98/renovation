@@ -1,15 +1,5 @@
 import * as THREE from 'three';
-import { part, MAT, B, RB, CYL, LATHE, BOOK_MATS, clothBox, cushion, artCanvasMaterial, topOf } from './core.js';
-import { modelGroup } from '../models.js';
-
-export function bedModel(key, w, l, fallback) {
-  const g = modelGroup(key, w, l);
-  if (!g) return fallback();
-  part(g, RB(1.18, 0.66, 0.03, 0.008), MAT.walnut, 0, 1.72, -l / 2 - 0.005);
-  part(g, B(1.08, 0.56, 0.01), artCanvasMaterial(2), 0, 1.72, -l / 2 + 0.013);
-  return g;
-}
-
+import { part, MAT, B, RB, CYL, LATHE, BOOK_MATS, clothBox, cushion, framedArt } from './core.js';
 
 function bedding(g, width, length, top = 0.3) {
   part(g, RB(width - 0.04, 0.18, length - 0.05, 0.05), MAT.mattress, 0, top + 0.09, 0.02);
@@ -67,6 +57,10 @@ export function bedWood(width, length) {
     const x = -width / 2 + 0.12 + (i * (width - 0.24)) / (slats - 1);
     part(g, RB(0.032, 0.48, 0.04, 0.01), MAT.paleWood, x, 0.54, hz);
   }
+  const aw = Math.min(1.15, width - 0.15);
+  const art = framedArt(aw, aw * 0.5, 2);
+  art.position.set(0, 1.55, hz + 0.03);
+  g.add(art);
   bedding(g, width, length);
   return g;
 }
@@ -86,6 +80,10 @@ export function bedUpholstered(width, length) {
   }
   part(g, RB(width + 0.06, 0.07, 0.12, 0.03), MAT.fabricBeige, 0, hh + 0.02, hz);
   part(g, B(width + 0.02, 0.03, 0.02), MAT.walnut, 0, 0.3, hz + 0.055);
+  const aw = Math.min(1.15, width - 0.15);
+  const art = framedArt(aw, aw * 0.5, 0);
+  art.position.set(0, 1.6, hz + 0.05);
+  g.add(art);
   bedding(g, width, length);
   return g;
 }
@@ -98,6 +96,10 @@ export function bedFloating(width, length) {
   const hz = -length / 2 - 0.035;
   part(g, RB(width + 0.04, 0.9, 0.08, 0.025), MAT.walnut, 0, 0.5, hz);
   part(g, RB(width + 0.12, 0.045, 0.1, 0.02), MAT.oak, 0, 0.955, hz);
+  const aw = Math.min(1.15, width - 0.15);
+  const art = framedArt(aw, aw * 0.5, 1);
+  art.position.set(0, 1.5, hz + 0.03);
+  g.add(art);
   bedding(g, width, length, 0.35);
   return g;
 }
@@ -149,11 +151,15 @@ export function nightstandOpen() {
   return g;
 }
 
-// 衣柜公共柜体：内收踢脚、柜身、顶部压线
+// 衣柜公共柜体：内收踢脚、奶油色柜身、木色角柱与顶部压线
 function wardrobeShell(g) {
   part(g, B(1.5, 0.08, 0.48), MAT.shadow, 0, 0.04, -0.02);
-  part(g, RB(1.6, 1.98, 0.6, 0.015), MAT.oak, 0, 1.06, 0);
+  part(g, RB(1.6, 1.98, 0.6, 0.015), MAT.cream, 0, 1.06, 0);
   part(g, RB(1.64, 0.045, 0.62, 0.012), MAT.walnut, 0, 2.075, 0);
+  for (const s of [-1, 1]) {
+    part(g, RB(0.034, 1.98, 0.034, 0.008), MAT.oak, s * 0.783, 1.06, 0.283);
+    part(g, B(0.012, 1.88, 0.01), MAT.shadow, s * 0.79, 1.07, 0.297);
+  }
 }
 
 export function wardrobeFlat() {
@@ -222,16 +228,3 @@ export function wardrobeGlass() {
   }
   return g;
 }
-
-
-export function nightstandModel(key, w, d) {
-  const g = modelGroup(key, w, d);
-  if (!g) return null;
-  const top = topOf(g);
-  addTableLamp(g, top);
-  part(g, B(0.15, 0.022, 0.11), BOOK_MATS[1], -w * 0.22, top + 0.011, d * 0.1, 0, 0.18);
-  part(g, B(0.13, 0.018, 0.1), BOOK_MATS[3], -w * 0.2, top + 0.031, d * 0.08, 0, -0.1);
-  return g;
-}
-
-// 真实餐桌：在模型顶面加中心摆件和餐具

@@ -232,6 +232,7 @@ export function ovalGeo(rx, rz, thick, hole = null, bevel = 0.008) {
 }
 
 
+// 程序化装饰画：画布生成低饱和抽象图案，jsdom 下回落到纯色
 const artMats = new Map();
 const ART_PALETTES = [
   ['#ded4c3', '#f2ece2', '#b5724f', '#8e9885', '#5e5a55'],
@@ -241,11 +242,17 @@ const ART_PALETTES = [
 export function artCanvasMaterial(variant = 0) {
   const key = variant % ART_PALETTES.length;
   if (artMats.has(key)) return artMats.get(key);
-  const [bg0, bg1, shapeA, shapeB, shapeC] = ART_PALETTES[key];
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = 320;
-  const x = c.getContext('2d');
+  const isJsdom = typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent);
+  const x = isJsdom ? null : c.getContext?.('2d');
+  if (!x) {
+    const flat = std('#c9bfae', 0.9);
+    artMats.set(key, flat);
+    return flat;
+  }
+  const [bg0, bg1, shapeA, shapeB, shapeC] = ART_PALETTES[key];
   const grad = x.createLinearGradient(0, 0, 512, 320);
   grad.addColorStop(0, bg0);
   grad.addColorStop(1, bg1);
@@ -274,6 +281,14 @@ export function artCanvasMaterial(variant = 0) {
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 });
   artMats.set(key, mat);
   return mat;
+}
+
+// 带细木框的挂画，正面朝 +Z
+export function framedArt(w, h, variant = 0) {
+  const g = new THREE.Group();
+  part(g, RB(w + 0.07, h + 0.07, 0.026, 0.008), MAT.walnut, 0, 0, 0);
+  part(g, B(w, h, 0.008), artCanvasMaterial(variant), 0, 0, 0.017);
+  return g;
 }
 
 const PLUME_GEO = new THREE.SphereGeometry(1, 7, 6);
@@ -326,5 +341,3 @@ export function centerpiece(g, y, ox = 0, oz = 0) {
   }
 }
 
-
-export const topOf = (g) => new THREE.Box3().setFromObject(g).max.y;

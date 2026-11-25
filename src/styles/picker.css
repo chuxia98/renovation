@@ -1,0 +1,225 @@
+/* ---------- Scene picker（场景拾取标注） ---------- */
+
+#btn-pick {
+  position: fixed;
+  top: 18px;
+  right: 72px;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+#btn-pick:hover {
+  color: var(--ink);
+  border-color: rgba(224, 169, 109, 0.45);
+}
+
+#btn-pick.active {
+  color: var(--accent);
+  border-color: rgba(224, 169, 109, 0.7);
+  background: rgba(224, 169, 109, 0.18);
+}
+
+body:not(.started) #btn-pick {
+  display: none;
+}
+
+body.picking #app canvas {
+  cursor: crosshair;
+}
+
+body.picking #hint {
+  opacity: 0;
+}
+
+#picker {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 24;
+  width: 318px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(18, 20, 24, 0.9);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+
+.picker-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.picker-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.picker-hint {
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+
+.picker-head .pop-close {
+  margin-left: auto;
+  align-self: center;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  max-height: 34vh;
+  overflow: auto;
+}
+
+.picker-empty {
+  padding: 6px 2px;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.pick-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pick-no {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(224, 169, 109, 0.5);
+  border-radius: 50%;
+  background: rgba(224, 169, 109, 0.18);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pick-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pick-name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pick-meta {
+  margin-top: 2px;
+  color: var(--ink-dim);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pick-del {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pick-del:hover {
+  color: #ff9b9b;
+  background: rgba(255, 120, 120, 0.12);
+}
+
+.picker-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.picker-actions button {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.picker-actions button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#picker-copy {
+  border-color: rgba(224, 169, 109, 0.45);
+  background: rgba(224, 169, 109, 0.14);
+  color: var(--accent);
+}
+
+#picker-copy:hover {
+  background: rgba(224, 169, 109, 0.24);
+}
+
+#pick-tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 23;
+  padding: 6px 9px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(12, 14, 18, 0.9);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pick-tip-head {
+  color: var(--accent);
+  font-size: 10.5px;
+}
+
+.pick-tip-coords {
+  color: var(--ink-dim);
+}
+
+body.touch #picker {
+  bottom: 120px;
+  width: 280px;
+}

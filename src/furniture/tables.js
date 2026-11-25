@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { part, MAT, B, RB, CYL, LATHE, BOOK_MATS, ovalGeo, tube, artCanvasMaterial, centerpiece, placeSetting, topOf } from './core.js';
-import { modelGroup } from '../models.js';
+import { part, MAT, B, RB, CYL, LATHE, BOOK_MATS, ovalGeo, tube, framedArt, centerpiece, placeSetting } from './core.js';
 
 export function coffeeRect() {
   const g = new THREE.Group();
@@ -10,8 +9,11 @@ export function coffeeRect() {
     for (const z of [-0.22, 0.22]) part(g, CYL(0.018, 0.022, 0.38, 10), MAT.walnut, x, 0.19, z);
   }
   part(g, CYL(0.055, 0.065, 0.16, 18), MAT.ceramic, -0.28, 0.505, 0.02);
-  part(g, B(0.22, 0.03, 0.16), MAT.fabricDark, 0.16, 0.44, 0.05);
-  part(g, B(0.2, 0.025, 0.15), MAT.cream, 0.17, 0.468, 0.045, 0, 0.12);
+  // 带书页的两本书
+  part(g, B(0.23, 0.012, 0.17), BOOK_MATS[0], 0.16, 0.431, 0.05);
+  part(g, B(0.215, 0.03, 0.155), MAT.cream, 0.16, 0.452, 0.05);
+  part(g, B(0.23, 0.012, 0.17), BOOK_MATS[0], 0.16, 0.473, 0.05);
+  part(g, B(0.2, 0.012, 0.15), BOOK_MATS[2], 0.17, 0.485, 0.045, 0, 0.16);
   return g;
 }
 
@@ -21,31 +23,9 @@ export function coffeeRound() {
   part(g, CYL(0.09, 0.11, 0.34, 20), MAT.walnut, 0, 0.2, 0);
   part(g, CYL(0.24, 0.27, 0.035, 28), MAT.walnut, 0, 0.018, 0);
   part(g, CYL(0.05, 0.06, 0.15, 18), MAT.ceramic, 0.16, 0.52, -0.1);
-  part(g, B(0.2, 0.03, 0.15), MAT.fabricDark, -0.14, 0.46, 0.06);
-  return g;
-}
-
-// 真实茶几模型的台面小物：一摞书、浅陶碗与蜡烛
-function coffeeTopDecor(g, w, d) {
-  const y = new THREE.Box3().setFromObject(g).max.y;
-  part(g, B(0.26, 0.03, 0.19), BOOK_MATS[0], w * 0.17, y + 0.015, d * 0.03, 0, 0.08);
-  part(g, B(0.23, 0.025, 0.17), BOOK_MATS[2], w * 0.18, y + 0.043, d * 0.02, 0, -0.1);
-  part(g, LATHE([[0, 0], [0.06, 0.005], [0.082, 0.022], [0.077, 0.036], [0.06, 0.03], [0, 0.024]], 28), MAT.ceramic, -w * 0.15, y + 0.002, -d * 0.08);
-  part(g, CYL(0.034, 0.034, 0.075, 16), MAT.ceramic, w * 0.03, y + 0.038, -d * 0.21);
-  part(g, CYL(0.007, 0.007, 0.014, 8), MAT.black, w * 0.03, y + 0.082, -d * 0.21);
-}
-
-export function coffeeModernModel() {
-  const g = modelGroup('coffeeModern', 1.1, 0.55);
-  if (!g) return coffeeRect();
-  coffeeTopDecor(g, 1.1, 0.55);
-  return g;
-}
-
-export function coffeeRoundModel() {
-  const g = modelGroup('coffeeRound', 0.9, 0.9);
-  if (!g) return coffeeRound();
-  coffeeTopDecor(g, 0.9, 0.9);
+  part(g, B(0.22, 0.012, 0.16), BOOK_MATS[1], -0.14, 0.456, 0.06);
+  part(g, B(0.205, 0.03, 0.145), MAT.cream, -0.14, 0.477, 0.06);
+  part(g, B(0.22, 0.012, 0.16), BOOK_MATS[1], -0.14, 0.498, 0.06);
   return g;
 }
 
@@ -145,28 +125,12 @@ export function tvLong() {
   for (let i = 0; i < 3; i++) {
     part(g, B(0.2, 0.03, 0.14), BOOK_MATS[i], 1.0, 0.41 + i * 0.03, 0);
   }
+  // 电视上方挂画，避免整面空墙
+  const art = framedArt(1.2, 0.64, 0);
+  art.position.set(0, 1.98, -0.185);
+  g.add(art);
   return g;
 }
-
-// 真实转角沙发：在背后墙面补一幅大挂画，避免大面积空墙
-
-export function tvLongModel() {
-  const g = modelGroup('cabinet', 2.4, 0.5);
-  if (!g) return tvLong();
-  const top = new THREE.Box3().setFromObject(g).max.y;
-  addTv(g, top, 1.56);
-    // 电视墙挂画：贴墙落在柜体上方
-  part(g, RB(1.34, 0.78, 0.032, 0.008), MAT.walnut, 0, 2.08, -0.405);
-  part(g, B(1.24, 0.68, 0.01), artCanvasMaterial(), 0, 2.08, -0.387);
-  // 电视柜两端的陶瓶、书和托盘
-  centerpiece(g, top, -0.95, 0.02);
-  for (let i = 0; i < 3; i++) {
-    part(g, B(0.3, 0.028, 0.22), BOOK_MATS[i], 0.93, top + 0.014 + i * 0.03, 0.02, 0, 0.05 + i * 0.08);
-  }
-  part(g, CYL(0.09, 0.075, 0.03, 20), MAT.ceramic, 0.72, top + 0.015, 0.02);
-  return g;
-}
-
 
 export function diningRect() {
   const g = new THREE.Group();
@@ -198,6 +162,29 @@ export function diningRound() {
   for (let i = 0; i < 4; i++) {
     const a = Math.PI / 4 + i * Math.PI / 2;
     placeSetting(g, Math.cos(a) * 0.385, Math.sin(a) * 0.385, 0.7335, -a - Math.PI / 2);
+  }
+  return g;
+}
+
+// 四腿圆桌：与独腿圆桌区分款式
+export function diningRoundLegs() {
+  const g = new THREE.Group();
+  part(g, LATHE([
+    [0, 0], [0.52, 0], [0.542, 0.002], [0.55, 0.012], [0.548, 0.032], [0.532, 0.05], [0.5, 0.055], [0, 0.055],
+  ], 64), MAT.oak, 0, 0.68, 0);
+  part(g, CYL(0.44, 0.44, 0.035, 48), MAT.walnut, 0, 0.6625, 0);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2;
+    const x = Math.cos(a) * 0.33;
+    const z = Math.sin(a) * 0.33;
+    const leg = part(g, CYL(0.024, 0.017, 0.66, 12), MAT.walnut, x, 0.33, z);
+    leg.rotation.z = x * 0.12;
+    leg.rotation.x = -z * 0.12;
+  }
+  centerpiece(g, 0.735);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2;
+    placeSetting(g, Math.cos(a) * 0.385, Math.sin(a) * 0.385, 0.736, -a - Math.PI / 2);
   }
   return g;
 }
@@ -371,27 +358,3 @@ export function bookshelfCabinet() {
   });
   return g;
 }
-
-
-export function diningModel(key, w, d, fallback, layout) {
-  const g = modelGroup(key, w, d);
-  if (!g) return fallback();
-  const top = topOf(g);
-  centerpiece(g, top);
-  if (layout === 'round') {
-    const r = Math.min(w, d) * 0.35;
-    for (let i = 0; i < 4; i++) {
-      const a = Math.PI / 4 + i * Math.PI / 2;
-      placeSetting(g, Math.cos(a) * r, Math.sin(a) * r, top + 0.002, -a - Math.PI / 2);
-    }
-  } else {
-    for (const z of [-d * 0.24, d * 0.24]) {
-      for (const x of [-w * 0.28, w * 0.28]) {
-        placeSetting(g, x, z, top + 0.002, z > 0 ? 0 : Math.PI);
-      }
-    }
-  }
-  return g;
-}
-
-// 真实落地灯：在灯罩高度补一盏暖光

@@ -174,8 +174,10 @@ export function buildApartment(scene, envTexture) {
     mesh.userData.floorRect = { x1, z1, x2, z2 };
     floorMeshes.push(mesh);
 
-    // 顶棚参与阴影，挡住直射阳光，室内只留窗洞光斑与灯光
-    box(w, 0.1, d, ceilMat, (x1 + x2) / 2, WALL_H + 0.04, (z1 + z2) / 2);
+    // 顶棚参与阴影，挡住直射阳光，室内只留窗洞光斑与灯光。
+    // 底面与墙顶(WALL_H)严格齐平：若与墙顶重叠 1cm，吊顶侧面会与过梁/墙面共面，
+    // 在墙顶交界处产生锯齿状 z-fighting 亮带
+    box(w, 0.1, d, ceilMat, (x1 + x2) / 2, WALL_H + 0.05, (z1 + z2) / 2);
   }
 
   // ---------- 墙体 ----------
@@ -330,6 +332,7 @@ export function buildApartment(scene, envTexture) {
     const span = op.a1 - op.a0;
     const h = op.top - op.sill;
     const yMid = (op.sill + op.top) / 2;
+    const childStart = root.children.length;
 
     const bar = (ac, len, y, hh) => {
       if (o === 'v') box(depth, hh, len, frameMat, c, y, ac);
@@ -349,6 +352,12 @@ export function buildApartment(scene, envTexture) {
 
     if (o === 'v') box(depth + 0.16, 0.035, span + 0.14, doorFrameMat, c, op.sill - 0.017, mid);
     else box(span + 0.14, 0.035, depth + 0.16, doorFrameMat, mid, op.sill - 0.017, c);
+
+    // 给拾取器留下语义标签：窗框 / 窗玻璃
+    for (let i = childStart; i < root.children.length; i++) {
+      const m = root.children[i];
+      if (m.isMesh) m.userData.surface = m.material === glassMat ? 'window-glass' : 'window-frame';
+    }
   }
 
   // ---------- 门 ----------
@@ -360,6 +369,7 @@ export function buildApartment(scene, envTexture) {
     const span = op.a1 - op.a0;
     const top = op.top;
     const jambW = 0.05;
+    const childStart = root.children.length;
 
     const jamb = (ac) => {
       if (o === 'v') box(t + 0.02, top, jambW, doorFrameMat, c, top / 2, ac);
@@ -453,6 +463,12 @@ export function buildApartment(scene, envTexture) {
     };
     group.userData.interact = record;
     interactions.push(record);
+
+    // 拾取器语义标签：门套（门扇本身通过 interact 记录识别为“门”）
+    for (let i = childStart; i < root.children.length; i++) {
+      const m = root.children[i];
+      if (m.isMesh && m.material === doorFrameMat) m.userData.surface = 'door-frame';
+    }
   }
 
   // ---------- 推拉门 ----------
@@ -573,6 +589,81 @@ export function buildApartment(scene, envTexture) {
     addBay(bay);
   }
 
+  // 飘窗玻璃分格：田字 4 格（上排高、下排矮），室内视角右侧上格为向外平开窗
+  function addBayPanes({ axis, plane, a0, a1, y0, y1 }) {
+    const mid = (a0 + a1) / 2;
+    const paneW = (a1 - a0) / 2;
+    const yMid = (y0 + y1) / 2;
+    const barY = y0 + 0.6;
+    const lowTop = barY - 0.025;
+    const upBot = barY + 0.025;
+    const upTop = y1 - 0.06;
+    const frameBar = (sx, sy, sz, x, y, z, parent = root) => box(sx, sy, sz, frameMat, x, y, z, { parent });
+
+    // 三道竖梃（两端 + 中线）贯穿全高，一道水平中梃分出上下两排
+    for (const ac of [a0, mid, a1]) {
+      if (axis === 'z') frameBar(0.06, y1 - y0, 0.06, plane, yMid, ac);
+      else frameBar(0.06, y1 - y0, 0.06, ac, yMid, plane);
+    }
+    if (axis === 'z') frameBar(0.06, 0.05, a1 - a0 + 0.06, plane, barY, mid);
+    else frameBar(a1 - a0 + 0.06, 0.05, 0.06, mid, barY, plane);
+
+    // 固定玻璃：下排两格 + 上排左格（两端略嵌入框条，避免透缝）
+    const fixed = (ac, yc, hh) => {
+      if (axis === 'z') box(0.012, hh, paneW - 0.02, glassMat, plane, yc, ac, { cast: false, receive: false });
+      else box(paneW - 0.02, hh, 0.012, glassMat, ac, yc, plane, { cast: false, receive: false });
+    };
+    const lowMid = (y0 + 0.06 + lowTop) / 2;
+    fixed(a0 + paneW / 2, lowMid, lowTop - y0 - 0.04);
+    fixed(a1 - paneW / 2, lowMid, lowTop - y0 - 0.04);
+    fixed(a1 - paneW / 2, (upBot + upTop) / 2, upTop - upBot + 0.02);
+
+    // 平开扇：室内视角右侧上格，铰接在该格外侧竖梃，向外旋出 60°
+    const leafW = paneW - 0.06;
+    const leafH = upTop - upBot - 0.02;
+    const leafY = upBot + 0.01;
+    const leafMidY = leafY + leafH / 2;
+    const group = new THREE.Group();
+    if (axis === 'z') group.position.set(plane, 0, a0 + 0.03);
+    else group.position.set(a0 + 0.03, 0, plane);
+    root.add(group);
+
+    const sx = axis === 'z' ? 0.03 : 0.035;
+    const sz = axis === 'z' ? 0.035 : 0.03;
+    for (const u of [0.0175, leafW - 0.0175]) {
+      if (axis === 'z') frameBar(sx, leafH, sz, 0, leafMidY, u, group);
+      else frameBar(sx, leafH, sz, u, leafMidY, 0, group);
+    }
+    for (const y of [leafY + 0.0175, leafY + leafH - 0.0175]) {
+      if (axis === 'z') frameBar(sx, 0.035, leafW, 0, y, leafW / 2, group);
+      else frameBar(leafW, 0.035, sz, leafW / 2, y, 0, group);
+    }
+    if (axis === 'z') {
+      box(0.012, leafH - 0.06, leafW - 0.06, glassMat, 0, leafMidY, leafW / 2, { cast: false, receive: false, parent: group });
+    } else {
+      box(leafW - 0.06, leafH - 0.06, 0.012, glassMat, leafW / 2, leafMidY, 0, { cast: false, receive: false, parent: group });
+    }
+
+    const swing = THREE.MathUtils.degToRad(60);
+    const record = {
+      kind: 'window',
+      open: false,
+      roots: [group],
+      toggle() {
+        record.open = !record.open;
+      },
+      update(dt) {
+        const target = record.open ? -swing : 0;
+        const cur = group.rotation.y;
+        if (Math.abs(target - cur) > 1e-3) {
+          group.rotation.y = cur + (target - cur) * Math.min(1, dt * 6);
+        }
+      },
+    };
+    group.userData.interact = record;
+    interactions.push(record);
+  }
+
   function addBay(bay) {
     const wall = wallsGeo.find(
       (w) => w.openings.some((op) => (bay.side === 'west' ? w.o === 'v' : w.o === 'h') && op.from === (bay.z0 ?? bay.x0) && op.bay),
@@ -580,8 +671,6 @@ export function buildApartment(scene, envTexture) {
     if (!wall) return;
     const t = wall.t / PX_PER_M;
     const depth = bay.depth / PX_PER_M;
-    const h = bay.top - bay.sill;
-    const yMid = (bay.sill + bay.top) / 2;
     const fw = 0.06;
 
     if (bay.side === 'west') {
@@ -602,13 +691,12 @@ export function buildApartment(scene, envTexture) {
       box(depth + 0.15, 0.08, span, doorFrameMat, (outerX + bayOuter) / 2 + 0.05, bay.sill - 0.04, midZ);
       box(depth + 0.15, 0.08, mouth, ceilMat, (outerX + bayOuter) / 2 + 0.05, WALL_H - 0.04, mouthMid);
 
-      // 外侧玻璃与框：玻璃两端插进薄虚墙中心线
+      // 外侧四扇窗：五道竖梃分出 4 块玻璃，中间两扇为向外开启的平开扇
       const gx = bayOuter + 0.035;
       const gSpan = span + tw;
-      box(0.016, h - 0.1, gSpan - 0.1, glassMat, gx, yMid, midZ, { cast: false, receive: false });
       box(fw, 0.06, gSpan, frameMat, gx, bay.sill + 0.03, midZ);
       box(fw, 0.06, gSpan, frameMat, gx, bay.top - 0.03, midZ);
-      for (const zc of [z0 + 0.035, midZ, z1 - 0.035]) box(fw, h, 0.06, frameMat, gx, yMid, zc);
+      addBayPanes({ axis: 'z', plane: gx, a0: z0 + 0.035, a1: z1 - 0.035, y0: bay.sill, y1: bay.top });
 
       // 两侧薄虚墙＋空心机位（户型图）：区间两端各一道薄墙，
       // 机位正面薄板与窗框齐平；薄墙内端埋入房屋墙 5cm
@@ -628,6 +716,19 @@ export function buildApartment(scene, envTexture) {
       }
       // 玻璃上端到凸盒顶的正面封板
       box(tw, WALL_H - bay.top, gSpan, wallMat, px0 + tw / 2, (bay.top + WALL_H) / 2, midZ);
+      // 洞口两侧封墙：从地面到天花补齐，避免两侧留出空洞
+      const sideDepth = px1 - px0;
+      for (const zc of [z0 - tw / 2 + 0.002, z1 + tw / 2 - 0.002]) {
+        const side = box(sideDepth, WALL_H, tw, wallMat,
+          (px0 + px1) / 2, WALL_H / 2, zc);
+        scaleWallUVs(side.geometry, sideDepth, WALL_H, tw);
+      }
+      // 窗顶以上填实，顶部同样不留空腔
+      const fillDepth = px1 - (px0 + tw);
+      const fillTop = WALL_H - 0.08;
+      const fill = box(fillDepth, fillTop - bay.top, mouth, wallMat,
+        (px0 + tw + px1) / 2, (bay.top + fillTop) / 2, mouthMid);
+      scaleWallUVs(fill.geometry, fillDepth, fillTop - bay.top, mouth);
     } else {
       const c = mz(wall.at);
       const outerZ = c + t / 2;
@@ -647,10 +748,9 @@ export function buildApartment(scene, envTexture) {
 
       const gz = bayOuter - 0.035;
       const gSpan = span + tw;
-      box(gSpan - 0.1, h - 0.1, 0.016, glassMat, midX, yMid, gz, { cast: false, receive: false });
       box(gSpan, 0.06, fw, frameMat, midX, bay.sill + 0.03, gz);
       box(gSpan, 0.06, fw, frameMat, midX, bay.top - 0.03, gz);
-      for (const xc of [x0 + 0.035, midX, x1 - 0.035]) box(0.06, h, fw, frameMat, xc, yMid, gz);
+      addBayPanes({ axis: 'x', plane: gz, a0: x0 + 0.035, a1: x1 - 0.035, y0: bay.sill, y1: bay.top });
 
       const pz0 = outerZ - 0.05;
       const pz1 = bayOuter - 0.007;
@@ -668,6 +768,19 @@ export function buildApartment(scene, envTexture) {
       }
       // 玻璃上端到凸盒顶的正面封板
       box(gSpan, WALL_H - bay.top, tw, wallMat, midX, (bay.top + WALL_H) / 2, pz1 - tw / 2);
+      // 洞口两侧封墙：从地面到天花补齐，避免两侧留出空洞
+      const sideDepth = pz1 - pz0;
+      for (const xc of [x0 - tw / 2 + 0.002, x1 + tw / 2 - 0.002]) {
+        const side = box(tw, WALL_H, sideDepth, wallMat,
+          xc, WALL_H / 2, (pz0 + pz1) / 2);
+        scaleWallUVs(side.geometry, tw, WALL_H, sideDepth);
+      }
+      // 窗顶以上填实，顶部同样不留空腔
+      const fillDepth = (pz1 - tw) - pz0;
+      const fillTop = WALL_H - 0.08;
+      const fill = box(mouth, fillTop - bay.top, fillDepth, wallMat,
+        mouthMid, (bay.top + fillTop) / 2, (pz0 + pz1 - tw) / 2);
+      scaleWallUVs(fill.geometry, mouth, fillTop - bay.top, fillDepth);
     }
   }
 
@@ -754,7 +867,8 @@ export function buildApartment(scene, envTexture) {
 
   // ---------- 灯光 ----------
 
-  scene.add(new THREE.AmbientLight(0xfff3e4, 0.05));
+  const ambient = new THREE.AmbientLight(0xfff3e4, 0.05);
+  scene.add(ambient);
 
   const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x8a7a66, 0.18);
   scene.add(hemi);
@@ -772,6 +886,9 @@ export function buildApartment(scene, envTexture) {
   sun.shadow.camera.far = 60;
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.025;
+  // VSM 半影由 radius（texel）控制；配合 blurSamples 平滑吊顶阴影边界
+  sun.shadow.radius = 4;
+  sun.shadow.blurSamples = 10;
   scene.add(sun);
   scene.add(sun.target);
 
@@ -781,6 +898,7 @@ export function buildApartment(scene, envTexture) {
     const light = new THREE.RectAreaLight(DAYLIGHT_COLOR, DAYLIGHT_POWER, width, height);
     light.position.set(x, y, z);
     light.lookAt(lookX, y, lookZ);
+    light.userData.basePower = DAYLIGHT_POWER;
     scene.add(light);
     daylightLights.push(light);
   }
@@ -802,19 +920,23 @@ export function buildApartment(scene, envTexture) {
     }
   }
 
+  const ceilingLights = [];
+
   for (const l of CEILING_LIGHTS) {
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 28), lampMat);
-    disc.position.set(l.x, WALL_H - 0.012, l.z);
+    disc.position.set(l.x, WALL_H - 0.002, l.z);
     root.add(disc);
 
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.175, 0.012, 8, 32), metalMat);
     ring.rotation.x = Math.PI / 2;
-    ring.position.set(l.x, WALL_H - 0.02, l.z);
+    ring.position.set(l.x, WALL_H - 0.01, l.z);
     root.add(ring);
 
     const light = new THREE.PointLight(0xffe9cc, l.power * LIGHT_BOOST, 8.5, 2);
     light.position.set(l.x, WALL_H - 0.28, l.z);
+    light.userData.basePower = l.power * LIGHT_BOOST;
     scene.add(light);
+    ceilingLights.push(light);
   }
 
   // ---------- 室外 ----------
@@ -906,5 +1028,6 @@ export function buildApartment(scene, envTexture) {
   return {
     root, colliders, floorMeshes, wallMeshes, interactions, balcony, balconyDoor, nicheWall, updateInteractions,
     glossyMaterials, daylightLights,
+    lights: { ambient, hemi, sun, sky, ceilingLights, lampMat, ceilMat },
   };
 }

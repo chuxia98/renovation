@@ -7,12 +7,13 @@ import { createMinimap, createRadar } from './minimap.js';
 import { t, applyStatic, initLang, onLangChange } from './i18n.js';
 import { bindApartment } from './style.js';
 import { loadPbr } from './pbr.js';
-import { loadModels } from './models.js';
 import { renderer, scene, camera, envTexture } from './core/scene.js';
+import { createDayNight } from './core/dayNight.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { placements, loadLayout, clearFurniture, bindColliders } from './core/furnitureState.js';
 import { toast } from './ui/toast.js';
 import { syncPanelOverlay } from './ui/panelOverlay.js';
@@ -20,6 +21,7 @@ import { initSchemes, renderSchemes } from './ui/schemes.js';
 import { initStylePanel, renderStyleControls, renderRoomOptions } from './ui/stylePanel.js';
 import { initSettings, renderLangSelect } from './ui/settings.js';
 import { initTouchControls } from './ui/touchControls.js';
+import { initPicker, isPicking, pickAt, exitPicker, togglePicker } from './ui/picker.js';
 import {
   initBuildMode, isActive, toggleBuild, enterBuild, exitBuild, escapeBuild,
   rotateGhost, deleteTarget, removeUnderPointer, handleTap, pointerMove,
@@ -28,34 +30,55 @@ import {
 
 const isTouch = window.matchMedia?.('(pointer: coarse)').matches ?? false;
 
-await Promise.all([loadPbr(), loadModels()]);
+await loadPbr();
 applyFurnitureTextures();
 
 const {
   colliders, floorMeshes, wallMeshes, interactions, balcony, balconyDoor, nicheWall, updateInteractions,
-  glossyMaterials, daylightLights,
+  glossyMaterials, daylightLights, lights,
 } = buildApartment(scene, envTexture);
 applyGlossyEnv(envTexture);
 bindApartment({ floorMeshes, wallMeshes, balcony, balconyDoor, nicheWall });
 bindColliders(colliders);
 const interactionRoots = interactions.flatMap((it) => it.roots);
 
-// ---------- 后处理：环境光遮蔽（GTAO）让家具与墙角产生真实接触阴影 ----------
+// ---------- 日夜交替 ----------
 
-const composer = new EffectComposer(renderer);
+const dayNight = createDayNight({ scene, ...lights, daylightLights });
+
+// ---------- 后处理 ----------
+
+// 离屏 RT 需要显式 MSAA：renderer 的 antialias 只作用于默认帧缓冲，
+// 后处理链路下墙面/吊顶交界的斜线会被放大成锯齿亮带
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, {
+  type: THREE.HalfFloatType,
+  samples: 4,
+}));
+composer.setSize(window.innerWidth, window.innerHeight);
 composer.addPass(new RenderPass(scene, camera));
-const gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
-gtaoPass.output = GTAOPass.OUTPUT.Default;
-gtaoPass.blendIntensity = 0.9;
-gtaoPass.updateGtaoMaterial({
-  radius: 0.55, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: 16,
-});
-composer.addPass(gtaoPass);
+
+// 不挂 GTAO：吊顶底面与墙顶严格齐平的 90° 直角会被屏幕空间 AO 当成凹角，
+// 沿墙角压出 10cm 以上的柔化暗带（直射灯光也被一并压暗），直角看起来像倒角
 composer.addPass(new OutputPass());
+
+// 离屏渲染的 MSAA 依赖驱动/浏览器支持，再补一道 FXAA 兜底：
+// 墙顶与吊顶交界的斜边在低角度下会变成明显锯齿
+const fxaaPass = new ShaderPass(FXAAShader);
+function updateFxaaResolution() {
+  const pr = renderer.getPixelRatio();
+  fxaaPass.material.uniforms.resolution.value.set(
+    1 / (window.innerWidth * pr),
+    1 / (window.innerHeight * pr),
+  );
+}
+updateFxaaResolution();
+composer.addPass(fxaaPass);
 
 // ---------- 第一人称控制 ----------
 
 const controls = new PlayerControls(camera, renderer.domElement, colliders, START);
+// 开发模式下暴露相机，便于按拾取报告里的机位复现视角
+if (import.meta.env.DEV) window.__hourseDebug = { controls, camera, scene, composer, renderer, dayNight };
 
 // ---------- HUD ----------
 
@@ -104,8 +127,9 @@ renderer.domElement.addEventListener('wheel', (e) => {
 
 initSchemes();
 initStylePanel();
-initSettings({ daylightLights, glossyMaterials });
+initSettings({ daylightLights, glossyMaterials, dayNight });
 initBuildMode({ controls, ctx, isTouch, floorMeshes });
+initPicker({ controls, onEnter: () => { if (isActive()) exitBuild(); } });
 initTouchControls({ controls, isTouch, enterBuild, rotateGhost, ctx });
 
 // ---------- 语言切换 ----------
@@ -153,13 +177,14 @@ function toggleInteractive(ndcX, ndcY) {
   }
   if (!it) return false;
   it.toggle();
-  const name = t(it.kind === 'door' ? 'interact.door' : 'interact.slider');
+  const name = t(`interact.${it.kind}`);
   toast(t(it.open ? 'toast.opened' : 'toast.closed', { name }));
   return true;
 }
 
 document.getElementById('btn-start').addEventListener('click', () => {
   overlay.classList.add('gone');
+  body.classList.add('started');
   if (isTouch) updateModeLabel();
   else controls.lock();
 });
@@ -215,6 +240,10 @@ window.addEventListener('pointerup', (e) => {
   tapStart = null;
   cancelPress();
   if (tap.moved || pressHandled || performance.now() - tap.at > 500) return;
+  if (isPicking()) {
+    pickAt(e.clientX, e.clientY);
+    return;
+  }
   if (isActive()) {
     handleTap(e.clientX, e.clientY);
   } else {
@@ -242,11 +271,17 @@ window.addEventListener('keydown', (e) => {
   if (!overlay.classList.contains('gone')) return;
   if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
   if (e.code === 'KeyG') {
+    if (isPicking()) exitPicker();
     toggleBuild();
     return;
   }
+  if (e.code === 'KeyP') {
+    togglePicker();
+    return;
+  }
   if (e.code === 'Escape') {
-    escapeBuild();
+    if (isPicking()) exitPicker();
+    else escapeBuild();
     return;
   }
   if (!isActive()) return;
@@ -259,6 +294,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
+  updateFxaaResolution();
   syncPanelOverlay();
 });
 
@@ -277,6 +313,7 @@ function loop(now) {
 
   controls.update(dt);
   updateInteractions(dt);
+  dayNight.update(dt);
 
   if (Math.abs(targetFov - camera.fov) > 0.01) {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
